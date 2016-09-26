@@ -77,7 +77,9 @@ abstract class TweetSet {
    * and be implemented in the subclasses?
    */
   def descendingByRetweet: TweetList
-  
+
+  def isEmpty: Boolean
+
   /**
    * The following methods are already implemented
    */
@@ -115,6 +117,8 @@ class Empty extends TweetSet {
 
   def descendingByRetweet: TweetList = Nil
 
+  def isEmpty: Boolean = true
+
   /**
    * The following methods are already implemented
    */
@@ -136,23 +140,23 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
     right.filterAcc(p, left.filterAcc(p, accUntilThis))
   }
 
-  def union(that: TweetSet): TweetSet = left union right union (that incl elem)
-
-  def moreRetweeted(default: Tweet, toCompare: => Tweet) = {
-    try {
-      if (default.retweets < toCompare.retweets) toCompare else default
-    } catch {
-      case e: java.util.NoSuchElementException => default
-    }
-  }
+  def union(that: TweetSet): TweetSet = left union (right union (that incl elem))
 
   def mostRetweeted: Tweet = {
-    moreRetweeted(moreRetweeted(elem, left.mostRetweeted), right.mostRetweeted)
+    val leftAndElemMostRetweeted = {
+      if (!left.isEmpty && elem.retweets < left.mostRetweeted.retweets) left.mostRetweeted
+      else elem
+    }
+
+    if (!right.isEmpty && leftAndElemMostRetweeted.retweets < right.mostRetweeted.retweets) right.mostRetweeted
+    else leftAndElemMostRetweeted
   }
 
   def descendingByRetweet: TweetList = {
     new Cons(mostRetweeted, this.remove(mostRetweeted).descendingByRetweet)
   }
+
+  def isEmpty: Boolean = false
 
   /**
    * The following methods are already implemented
