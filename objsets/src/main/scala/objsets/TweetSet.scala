@@ -2,6 +2,8 @@ package objsets
 
 import TweetReader._
 
+import scala.annotation.tailrec
+
 /**
  * A class to represent tweets.
  */
@@ -137,19 +139,26 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
   def filterAcc(p: Tweet => Boolean, acc: TweetSet): TweetSet = {
     val accUntilThis = if (p(elem)) acc incl elem else acc
 
-    right.filterAcc(p, left.filterAcc(p, accUntilThis))
+    left.filterAcc(p, right.filterAcc(p, accUntilThis))
   }
 
-  def union(that: TweetSet): TweetSet = left union (right union (that incl elem))
+  def union(that: TweetSet): TweetSet = {
+    left union (right union (that incl elem))
+  }
+
+  def mostRetweetedWithDefault(default: Tweet, tweetSet: TweetSet): Tweet = {
+    try {
+      val tweetSetMostRetweeted = tweetSet.mostRetweeted
+
+      if (default.retweets < tweetSetMostRetweeted.retweets) tweetSetMostRetweeted
+      else default
+    } catch {
+      case e: java.util.NoSuchElementException => default
+    }
+  }
 
   def mostRetweeted: Tweet = {
-    val leftAndElemMostRetweeted = {
-      if (!left.isEmpty && elem.retweets < left.mostRetweeted.retweets) left.mostRetweeted
-      else elem
-    }
-
-    if (!right.isEmpty && leftAndElemMostRetweeted.retweets < right.mostRetweeted.retweets) right.mostRetweeted
-    else leftAndElemMostRetweeted
+    mostRetweetedWithDefault(mostRetweetedWithDefault(elem, left), right)
   }
 
   def descendingByRetweet: TweetList = {
@@ -214,6 +223,7 @@ object GoogleVsApple {
   lazy val googleTweets: TweetSet = {
     TweetReader.allTweets.filter(tweet => google.exists(tweet.text contains _))
   }
+
   lazy val appleTweets: TweetSet = {
     TweetReader.allTweets.filter(tweet => apple.exists(tweet.text contains _))
   }
