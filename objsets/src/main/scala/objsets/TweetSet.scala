@@ -80,8 +80,6 @@ abstract class TweetSet {
    */
   def descendingByRetweet: TweetList
 
-  def isEmpty: Boolean
-
   /**
    * The following methods are already implemented
    */
@@ -118,8 +116,6 @@ class Empty extends TweetSet {
   def mostRetweeted: Tweet = throw new java.util.NoSuchElementException
 
   def descendingByRetweet: TweetList = Nil
-
-  def isEmpty: Boolean = true
 
   /**
    * The following methods are already implemented
@@ -164,8 +160,6 @@ class NonEmpty(elem: Tweet, left: TweetSet, right: TweetSet) extends TweetSet {
   def descendingByRetweet: TweetList = {
     new Cons(mostRetweeted, this.remove(mostRetweeted).descendingByRetweet)
   }
-
-  def isEmpty: Boolean = false
 
   /**
    * The following methods are already implemented
