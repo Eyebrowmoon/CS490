@@ -1,7 +1,7 @@
 package slave
 
 import java.io._
-import java.nio.{CharBuffer}
+import java.nio.CharBuffer
 
 import common._
 
@@ -15,19 +15,27 @@ class FileHandler {
     else List[File]()
   }
 
-  def sampleSingleFile(sampleRatio: Double)(file:File): String = {
-    var inStream: BufferedReader = null
-    var readSize: Long = 0
+  def readKeysFromFile(inStream: BufferedReader, numKeys: Int): String = {
     var result = ""
-    val sampleSize: Long = (sampleRatio * file.length).toLong
+
+    (0 until numKeys) foreach { _ =>
+      inStream read sampleBuffer
+      result += new String(sampleBuffer.array.slice(0, keyLength))
+      sampleBuffer.clear
+    }
+
+    result
+  }
+
+  // Assume uniform distribution
+  def sampleSingleFile(sampleRatio: Double)(file:File): String = {
+    val numKeys: Int = (sampleRatio * file.length).toInt / 10
+    var inStream: BufferedReader = null
+    var result = ""
 
     try {
       inStream = new BufferedReader(new FileReader(file))
-      while(readSize < sampleSize) {
-        inStream read sampleBuffer
-        result += new String(sampleBuffer.array.slice(0, keyLength))
-        readSize += 10
-      }
+      result = readKeysFromFile(inStream, numKeys)
     } catch {
       case e: Exception => e.printStackTrace()
     } finally {

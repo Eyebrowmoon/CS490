@@ -5,6 +5,8 @@ import java.net.Socket
 import common._
 
 import scala.collection.mutable
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
 abstract class MasterState
 object MasterInitState extends MasterState
@@ -18,6 +20,8 @@ class MasterStateManager(numSlave: Int) extends StateManager {
   val connected: mutable.MutableList[SocketHandler] = mutable.MutableList.empty
   val slaves: mutable.MutableList[SocketHandler] = mutable.MutableList.empty
   val samples: mutable.MutableList[Key] = mutable.MutableList.empty
+
+  val finishedSlaves: mutable.MutableList[SocketHandler] = mutable.MutableList.empty
 
   var state: MasterState = MasterInitState
 
@@ -39,14 +43,25 @@ class MasterStateManager(numSlave: Int) extends StateManager {
   protected def handleMessage(message: Message): Unit = state match {
     case MasterInitState => initHandleMessage(message)
     case MasterSampleState => sampleHandleMessage(message)
+    case MasterComputeState => computeHandleMessage(message)
+    case _ =>
   }
 
   private def initHandleMessage(message: Message) = message match {
     case ConnectionMessage(socket) => handleConnectionMessage(socket)
     case SampleMessage(numData, keys, handler) => handleSampleMessage(numData, keys, handler)
+    case _ =>
   }
 
-  private def sampleHandleMessage(message: Message) = { terminate() }
+  private def sampleHandleMessage(message: Message): Unit = message match {
+    case PivotMessage(pivots) => handlePivotMessage(pivots)
+    case _ =>
+  }
+
+  private def computeHandleMessage(message: Message): Unit = message match {
+    case DoneMessage(handler) => handleDoneMessage(handler)
+    case _ =>
+  }
 
   private def printSlaveIP(): Unit = {
     val slaveIPConcat: String = slaves.map(_.partnerIP).mkString("",", ","")
@@ -59,10 +74,9 @@ class MasterStateManager(numSlave: Int) extends StateManager {
     socketHandler.start()
   }
 
-  private def changeToSampleState(): Unit = {
-    (connected diff slaves) foreach { _.terminate() }
-    printSlaveIP()
-    state = MasterSampleState
+  private def handlePivotMessage(pivots: List[Key]): Unit = {
+    sendSlavesInfoMessage(pivots)
+    changeToComputeState()
   }
 
   private def handleSampleMessage(numData: Long, keys: Array[Key], handler: SocketHandler): Unit = {
@@ -71,5 +85,50 @@ class MasterStateManager(numSlave: Int) extends StateManager {
 
     if (slaves.length >= numSlave)
       changeToSampleState()
+  }
+
+  private def handleDoneMessage(handler: SocketHandler): Unit = {
+    finishedSlaves += handler
+
+    println("Done")
+
+    if (finishedSlaves.length >= numSlave)
+      changeToSuccessState()
+  }
+
+  private def sendSlavesInfoMessage(pivots: List[Key]): Unit = {
+    val slaveIPList: Array[String] = slaves.map(_.partnerIP).toArray
+    val sendablePivots: Array[String] = pivots map { new String(_) } toArray
+
+    (0 until slaves.length) foreach { i =>
+      slaves(i).sendMessage(new SlaveInfoMessage(slaveIPList, sendablePivots, i))
+    }
+  }
+
+  private def terminateSocketHandlersExceptSlaves(): Unit = (connected diff slaves) foreach { _.terminate() }
+
+  private def startPivotCalculator(): Unit = {
+    val pivotFuture: Future[List[Key]] = PivotCalculator.getPivots(samples.toList, numSlave)
+    pivotFuture onSuccess  { case pivots => this.addMessage(new PivotMessage(pivots)) }
+  }
+
+  private def changeToSampleState(): Unit = {
+    terminateSocketHandlersExceptSlaves()
+    printSlaveIP()
+    startPivotCalculator()
+
+    state = MasterSampleState
+  }
+
+  private def changeToComputeState(): Unit = {
+    state = MasterComputeState
+  }
+
+  private def changeToSuccessState(): Unit = {
+    state = MasterSuccessState
+
+    println("Success")
+
+    terminate()
   }
 }
