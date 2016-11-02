@@ -1,4 +1,4 @@
-package Common
+package common
 
 import java.io.{BufferedReader, InputStreamReader, PrintStream}
 import java.net.{Socket, SocketException}
@@ -7,7 +7,7 @@ import java.nio.CharBuffer
 import scala.pickling.Defaults._
 import scala.pickling.json._
 
-class SocketHandler(socket: Socket, messageHandler: SendableMessage => Unit)
+class SocketHandler(socket: Socket, stateManager: StateManager)
   extends Thread {
 
   var terminated = false
@@ -20,12 +20,14 @@ class SocketHandler(socket: Socket, messageHandler: SendableMessage => Unit)
     try{
       while (!terminated) {
         in read charBuffer
+
         val messageString = charBuffer.array.mkString("")
         val message = messageString.unpickle[SendableMessage]
-        messageHandler(message)
+        handleMessage(message)
+
+        charBuffer.clear()
       }
     } catch {
-      // TO DO !!!
       case e: SocketException =>
       case e: Exception => e.printStackTrace()
     }
@@ -42,5 +44,22 @@ class SocketHandler(socket: Socket, messageHandler: SendableMessage => Unit)
   def sendMessage(message: SendableMessage): Unit = {
     val messageString = message.pickle.value
     out.println(messageString)
+  }
+
+  def stringToKeyArray(keyString: String): Array[Key] = {
+    val byteArray = keyString.getBytes
+    val arrayLength = keyString.length / keyLength
+    val keyArray = new Array[Key](arrayLength)
+
+    (0 until arrayLength) foreach { i =>
+      keyArray(i) = byteArray.slice(i * keyLength, (i+1) * keyLength)
+    }
+
+    keyArray
+  }
+
+  def handleMessage(message: SendableMessage): Unit = message match {
+    case SendableSampleMessage(numData, keys) =>
+      stateManager.addMessage(new SampleMessage(numData, stringToKeyArray(keys), this))
   }
 }

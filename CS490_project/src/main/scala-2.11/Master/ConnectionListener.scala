@@ -1,9 +1,9 @@
-package Master
+package master
 
 import java.io.IOException
 import java.net.{InetAddress, ServerSocket, Socket}
 
-import Common.ConnectionMessage
+import common.ConnectionMessage
 
 class ConnectionListener(master: MasterStateManager) extends Thread {
   val IPAddress: String = InetAddress.getLocalHost.getHostAddress

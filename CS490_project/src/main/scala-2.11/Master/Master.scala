@@ -1,13 +1,14 @@
-package Master
+package master
 
 object Master {
   def main(args: Array[String]): Unit = {
     try{
-      val numSlave: Int = args(1).toInt
+      val numSlave: Int = args(0).toInt
 
       (new MasterStateManager(numSlave)).run()
     } catch {
-      case e: Exception => printUsage()
+      case e: IllegalArgumentException => printUsage()
+      case e: Exception => e.printStackTrace()
     }
   }
 

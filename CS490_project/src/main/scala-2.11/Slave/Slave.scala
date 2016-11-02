@@ -1,15 +1,16 @@
-package Slave
+package slave
 
 object Slave {
   def main(args:Array[String]): Unit = {
     try {
-      val masterAddress = args(1)
+      val masterAddress = args(0)
       val inputDirs = parseInputDirs(args)
       val outputDirs = parseOutputDir(args)
 
       (new SlaveStateManager(masterAddress, inputDirs, outputDirs)).run()
     } catch {
-      case e: Exception => printUsage()
+      case e: IllegalArgumentException => printUsage()
+      case e: Exception => e.printStackTrace()
     }
   }
 

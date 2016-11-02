@@ -1,8 +1,8 @@
-package Master
+package master
 
 import java.net.Socket
 
-import Common._
+import common._
 
 import scala.collection.mutable
 
@@ -15,7 +15,9 @@ object MasterSuccessState extends MasterState
 class MasterStateManager(numSlave: Int) extends StateManager {
 
   val connectionListener: ConnectionListener = new ConnectionListener(this)
+  val connected: mutable.MutableList[SocketHandler] = mutable.MutableList.empty
   val slaves: mutable.MutableList[SocketHandler] = mutable.MutableList.empty
+  val samples: mutable.MutableList[Key] = mutable.MutableList.empty
 
   var state: MasterState = MasterInitState
 
@@ -34,9 +36,17 @@ class MasterStateManager(numSlave: Int) extends StateManager {
     Thread.currentThread().interrupt()
   }
 
-  protected def handleMessage(message: Message): Unit = message match {
-    case ConnectionMessage(socket) => handleConnectionMessage(socket)
+  protected def handleMessage(message: Message): Unit = state match {
+    case MasterInitState => initHandleMessage(message)
+    case MasterSampleState => sampleHandleMessage(message)
   }
+
+  private def initHandleMessage(message: Message) = message match {
+    case ConnectionMessage(socket) => handleConnectionMessage(socket)
+    case SampleMessage(numData, keys, handler) => handleSampleMessage(numData, keys, handler)
+  }
+
+  private def sampleHandleMessage(message: Message) = { terminate() }
 
   private def printSlaveIP(): Unit = {
     val slaveIPConcat: String = slaves.map(_.partnerIP).mkString("",", ","")
@@ -44,13 +54,22 @@ class MasterStateManager(numSlave: Int) extends StateManager {
   }
 
   private def handleConnectionMessage(socket: Socket) = {
-    val socketHandler: SocketHandler = new SocketHandler(socket, socketMessageHandler)
-    slaves += socketHandler
+    val socketHandler: SocketHandler = new SocketHandler(socket, this)
+    connected += socketHandler
     socketHandler.start()
   }
 
-  /* Temporary handler */
-  def socketMessageHandler(message: SendableMessage): Unit = message match {
-    case SendableSampleMessage(numData, keys) => println(numData)
+  private def changeToSampleState(): Unit = {
+    (connected diff slaves) foreach { _.terminate() }
+    printSlaveIP()
+    state = MasterSampleState
+  }
+
+  private def handleSampleMessage(numData: Long, keys: Array[Key], handler: SocketHandler): Unit = {
+    slaves += handler
+    samples ++= keys
+
+    if (slaves.length >= numSlave)
+      changeToSampleState()
   }
 }
