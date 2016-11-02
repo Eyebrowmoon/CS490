@@ -1,8 +1,8 @@
 package common
 
-import java.net.{InetSocketAddress, SocketException}
+import java.net.{SocketException}
 import java.nio.ByteBuffer
-import java.nio.channels.{SelectableChannel, SelectionKey, Selector, SocketChannel}
+import java.nio.channels.{SelectionKey, Selector, SocketChannel}
 
 import scala.annotation.tailrec
 import scala.pickling.Defaults._
@@ -44,7 +44,7 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
     val buffer: ByteBuffer = ByteBuffer.allocate(1024)
     socketChannel read buffer
     buffer.clear()
-    new String(buffer.array).trim
+    new String(buffer.array)
   }
 
   override def run(): Unit = {
@@ -54,6 +54,7 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
       while (!terminated) {
         readFromChannel() match {
           case Some(messageString) => {
+            println(messageString) // For debug. It will be removed later.
             val message = messageString.unpickle[SendableMessage]
             handleMessage(message)
           }
@@ -74,12 +75,18 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
     socketChannel.close
   }
 
-  def partnerIP(): String = socketChannel.getRemoteAddress.toString.substring(1)
+  def partnerIP(): String = {
+    val remoteAddress = socketChannel.getRemoteAddress.toString.substring(1)
+    val colonIdx = remoteAddress.indexOf(":")
+
+    remoteAddress.substring(0, colonIdx)
+  }
 
   def handleMessage(message: SendableMessage): Unit = message match {
     case SendableSampleMessage(numData, sampleSize) => handleSampleMessage(numData, sampleSize)
     case SlaveInfoMessage(pivots, slaveIP, slaveNum) => stateManager.addMessage(message)
     case SendableDoneMessage => stateManager.addMessage(DoneMessage(this))
+    case AckMessage => stateManager.addMessage(AckMessage)
   }
 
   def sendBlock(str: String): Unit = {
@@ -102,7 +109,7 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
       sendBlock(block)
     }
 
-    if (numOfPacket != 0){
+    if (numOfPacket != 0) {
       val block = message.substring((numOfPacket - 1) * packetSize)
       sendBlock(block)
     }
@@ -125,9 +132,8 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
 
   private def recvString(length: Int): String = {
     var result: String = ""
-    val numPacket: Int = Math.ceil(length * 1.0 / packetSize).toInt
 
-    (0 until numPacket) foreach { i =>
+    while (result.length < length) {
       result += recvBlock()
     }
 
