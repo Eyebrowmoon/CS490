@@ -44,7 +44,7 @@ class MasterStateManager(numSlave: Int) extends StateManager {
     case MasterInitState => initHandleMessage(message)
     case MasterSampleState => sampleHandleMessage(message)
     case MasterComputeState => computeHandleMessage(message)
-    case _ =>
+    case MasterSuccessState =>
   }
 
   private def initHandleMessage(message: Message) = message match {
@@ -90,18 +90,16 @@ class MasterStateManager(numSlave: Int) extends StateManager {
   private def handleDoneMessage(handler: SocketHandler): Unit = {
     finishedSlaves += handler
 
-    println("Done")
-
     if (finishedSlaves.length >= numSlave)
       changeToSuccessState()
   }
 
   private def sendSlavesInfoMessage(pivots: List[Key]): Unit = {
     val slaveIPList: Array[String] = slaves.map(_.partnerIP).toArray
-    val sendablePivots: Array[String] = pivots map { new String(_) } toArray
+    val pivotString: String = pivots map { new String(_) } mkString
 
-    (0 until slaves.length) foreach { i =>
-      slaves(i).sendMessage(new SlaveInfoMessage(slaveIPList, sendablePivots, i))
+    slaves.indices foreach { i =>
+      slaves(i).sendMessage(SlaveInfoMessage(slaveIPList, pivotString, i))
     }
   }
 
@@ -109,7 +107,7 @@ class MasterStateManager(numSlave: Int) extends StateManager {
 
   private def startPivotCalculator(): Unit = {
     val pivotFuture: Future[List[Key]] = PivotCalculator.getPivots(samples.toList, numSlave)
-    pivotFuture onSuccess  { case pivots => this.addMessage(new PivotMessage(pivots)) }
+    pivotFuture onSuccess  { case pivots => this.addMessage(PivotMessage(pivots)) }
   }
 
   private def changeToSampleState(): Unit = {
@@ -126,8 +124,6 @@ class MasterStateManager(numSlave: Int) extends StateManager {
 
   private def changeToSuccessState(): Unit = {
     state = MasterSuccessState
-
-    println("Success")
 
     terminate()
   }

@@ -62,10 +62,14 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
     case _ =>
   }
 
-  private def handleSlaveInfoMessage(slaveIP: Array[String], pivots: Array[String], slaveNum: Int): Unit = {
+  private def handleSlaveInfoMessage(slaveIP: Array[String], pivotString: String, slaveNum: Int): Unit = {
     this.slaveIP = slaveIP
-    this.pivots = pivots map { _.getBytes }
+    this.pivots = stringToKeyArray(pivotString)
     this.slaveNum = slaveNum
+
+    pivots foreach { key =>
+      println(stringToHex(new String(key)))
+    }
 
     changeToComputeState()
   }

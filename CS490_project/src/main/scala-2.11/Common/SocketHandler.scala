@@ -20,19 +20,16 @@ class SocketHandler(socket: Socket, stateManager: StateManager)
 
   def eraseBuffer(): Unit = util.Arrays.fill(charBuffer.array, '\0')
 
-  def readToBuffer(): Unit = {
+  def readToBuffer(): Int = {
     charBuffer.clear()
-    eraseBuffer()
     in read charBuffer
   }
 
   override def run(): Unit = {
     try{
       while (!terminated) {
-        readToBuffer()
-        val messageString = charBuffer.array.mkString("")
-
-        println(s"Received: $messageString")
+        val size = readToBuffer()
+        val messageString = charBuffer.array.slice(0, size).mkString
 
         val message = messageString.unpickle[SendableMessage]
         handleMessage(message)
@@ -60,8 +57,7 @@ class SocketHandler(socket: Socket, stateManager: StateManager)
   def handleMessage(message: SendableMessage): Unit = message match {
     case SendableSampleMessage(numData, sampleSize) => handleSampleMessage(numData, sampleSize)
     case SlaveInfoMessage(pivots, slaveIP, slaveNum) => stateManager.addMessage(message)
-    case SendableDoneMessage => stateManager.addMessage(new DoneMessage(this))
-    case _ =>
+    case SendableDoneMessage => stateManager.addMessage(DoneMessage(this))
   }
 
   def sendString(message: String): Unit = {
@@ -77,34 +73,20 @@ class SocketHandler(socket: Socket, stateManager: StateManager)
     out print block
   }
 
-  def stringToKeyArray(keyString: String): Array[Key] = {
-    val byteArray = keyString.getBytes
-    val arrayLength = keyString.length / keyLength
-    val keyArray = new Array[Key](arrayLength)
-
-    (0 until arrayLength) foreach { i =>
-      keyArray(i) = byteArray.slice(i * keyLength, (i+1) * keyLength)
-    }
-
-    keyArray
-  }
-
   private def handleSampleMessage(numData: Long, sampleSize: Int): Unit = {
     val sample = recvString(sampleSize)
     val sampleKeyArray = stringToKeyArray(sample)
 
-    stateManager.addMessage(new SampleMessage(numData, sampleKeyArray, this))
+    stateManager.addMessage(SampleMessage(numData, sampleKeyArray, this))
   }
 
-  def recvString(length: Int): String = {
+  private def recvString(length: Int): String = {
     var result: String = ""
     val numPacket: Int = Math.ceil(length * 1.0 / packetSize).toInt
 
     (0 until numPacket) foreach { i =>
       readToBuffer()
-
-      val recved = charBuffer.array.mkString
-      result += recved
+      result += charBuffer.array.mkString
     }
 
     result.substring(0, length)
