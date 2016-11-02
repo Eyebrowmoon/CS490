@@ -1,6 +1,7 @@
 package master
 
 import java.net.Socket
+import java.nio.channels.SocketChannel
 
 import common._
 
@@ -37,6 +38,7 @@ class MasterStateManager(numSlave: Int) extends StateManager {
   def terminate(): Unit = {
     if (connectionListener.isAlive) connectionListener.terminate()
     slaves filter { _.isAlive } foreach { _.terminate() }
+
     Thread.currentThread().interrupt()
   }
 
@@ -68,8 +70,8 @@ class MasterStateManager(numSlave: Int) extends StateManager {
     println(slaveIPConcat)
   }
 
-  private def handleConnectionMessage(socket: Socket) = {
-    val socketHandler: SocketHandler = new SocketHandler(socket, this)
+  private def handleConnectionMessage(socketChannel: SocketChannel) = {
+    val socketHandler: SocketHandler = new SocketHandler(socketChannel, this)
     connected += socketHandler
     socketHandler.start()
   }
@@ -96,7 +98,9 @@ class MasterStateManager(numSlave: Int) extends StateManager {
 
   private def sendSlavesInfoMessage(pivots: List[Key]): Unit = {
     val slaveIPList: Array[String] = slaves.map(_.partnerIP).toArray
-    val pivotString: String = pivots map { new String(_) } mkString
+    val pivotString: String = pivots map { pivot =>
+      pivot map {_.toChar} mkString
+    } mkString
 
     slaves.indices foreach { i =>
       slaves(i).sendMessage(SlaveInfoMessage(slaveIPList, pivotString, i))

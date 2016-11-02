@@ -1,38 +1,64 @@
 package common
 
-import java.io.{BufferedReader, InputStreamReader, PrintStream}
-import java.net.{Socket, SocketException}
-import java.nio.CharBuffer
-import java.util
+import java.net.{InetSocketAddress, SocketException}
+import java.nio.ByteBuffer
+import java.nio.channels.{SelectableChannel, SelectionKey, Selector, SocketChannel}
 
+import scala.annotation.tailrec
 import scala.pickling.Defaults._
 import scala.pickling.PicklingException
 import scala.pickling.json._
 
-class SocketHandler(socket: Socket, stateManager: StateManager)
+class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
   extends Thread {
 
   var terminated = false
+  val selector = Selector.open()
 
-  val in = new BufferedReader(new InputStreamReader(socket.getInputStream))
-  val out = new PrintStream(socket.getOutputStream)
-  val charBuffer: CharBuffer = CharBuffer.allocate(packetSize)
+  def initSocketChannel(): Unit = {
+    socketChannel.configureBlocking(false)
+    socketChannel.register(selector, SelectionKey.OP_READ)
+  }
 
-  def eraseBuffer(): Unit = util.Arrays.fill(charBuffer.array, '\0')
+  def readFromChannel(): Option[String] = {
+    selector.select(100)
 
-  def readToBuffer(): Int = {
-    charBuffer.clear()
-    in read charBuffer
+    val iter = selector.selectedKeys.iterator
+    readFromIter(iter)
+  }
+
+  /* has side effect due to iter.next() */
+  def readFromIter(iter: java.util.Iterator[SelectionKey]): Option[String] = {
+    if (!terminated && iter.hasNext) {
+      val key: SelectionKey = iter.next()
+
+      if(key.isReadable) {
+        iter.remove()
+        Some(readFromKey(key))
+      }
+      else readFromIter(iter)
+    } else None
+  }
+
+  def readFromKey(key: SelectionKey): String = {
+    val buffer: ByteBuffer = ByteBuffer.allocate(1024)
+    socketChannel read buffer
+    buffer.clear()
+    new String(buffer.array).trim
   }
 
   override def run(): Unit = {
+    initSocketChannel()
+
     try{
       while (!terminated) {
-        val size = readToBuffer()
-        val messageString = charBuffer.array.slice(0, size).mkString
-
-        val message = messageString.unpickle[SendableMessage]
-        handleMessage(message)
+        readFromChannel() match {
+          case Some(messageString) => {
+            val message = messageString.unpickle[SendableMessage]
+            handleMessage(message)
+          }
+          case None =>
+        }
       }
     } catch {
       case e: SocketException =>
@@ -43,21 +69,28 @@ class SocketHandler(socket: Socket, stateManager: StateManager)
 
   def terminate(): Unit = {
     terminated = true
-    if (!socket.isClosed)
-      socket.close()
+
+    socketChannel.socket.close
+    socketChannel.close
   }
 
-  def partnerIP(): String = socket.getInetAddress.toString.substring(1)
-
-  def sendMessage(message: SendableMessage): Unit = {
-    val messageString = message.pickle.value
-    out.print(messageString)
-  }
+  def partnerIP(): String = socketChannel.getRemoteAddress.toString.substring(1)
 
   def handleMessage(message: SendableMessage): Unit = message match {
     case SendableSampleMessage(numData, sampleSize) => handleSampleMessage(numData, sampleSize)
     case SlaveInfoMessage(pivots, slaveIP, slaveNum) => stateManager.addMessage(message)
     case SendableDoneMessage => stateManager.addMessage(DoneMessage(this))
+  }
+
+  def sendBlock(str: String): Unit = {
+    val buffer = ByteBuffer.wrap(str.getBytes)
+    socketChannel write buffer
+    buffer.clear()
+  }
+
+  def sendMessage(message: SendableMessage): Unit = {
+    val messageString = message.pickle.value
+    sendBlock(messageString)
   }
 
   def sendString(message: String): Unit = {
@@ -66,12 +99,12 @@ class SocketHandler(socket: Socket, stateManager: StateManager)
     (0 until (numOfPacket - 1)) foreach { i =>
       val start = i * packetSize
       val block = message.substring(start, start + packetSize)
-      out print block
+      sendBlock(block)
     }
 
     if (numOfPacket != 0){
       val block = message.substring((numOfPacket - 1) * packetSize)
-      out print block
+      sendBlock(block)
     }
   }
 
@@ -82,13 +115,20 @@ class SocketHandler(socket: Socket, stateManager: StateManager)
     stateManager.addMessage(SampleMessage(numData, sampleKeyArray, this))
   }
 
+  @tailrec
+  private def recvBlock(): String = {
+    readFromChannel() match {
+      case Some(str) => str
+      case None => recvBlock()
+    }
+  }
+
   private def recvString(length: Int): String = {
     var result: String = ""
     val numPacket: Int = Math.ceil(length * 1.0 / packetSize).toInt
 
     (0 until numPacket) foreach { i =>
-      readToBuffer()
-      result += charBuffer.array.mkString
+      result += recvBlock()
     }
 
     result.substring(0, length)

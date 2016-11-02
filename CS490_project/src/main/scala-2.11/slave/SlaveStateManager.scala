@@ -1,7 +1,8 @@
 package slave
 
 import java.io.File
-import java.net.Socket
+import java.net.{InetSocketAddress, Socket}
+import java.nio.channels.{SelectionKey, SocketChannel}
 
 import common._
 
@@ -15,8 +16,9 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
 
   val masterIP: String = masterAddress.substring(0, masterAddress.indexOf(":"))
   val masterPort: Int = masterAddress.substring(masterAddress.indexOf(":") + 1).toInt
+  val masterInetSocketAddress = new InetSocketAddress(masterIP, masterPort)
 
-  val masterSocketHandler: SocketHandler = new SocketHandler(new Socket(masterIP, masterPort), this)
+  val masterSocketHandler: SocketHandler = new SocketHandler(openSocketChannel, this)
   val fileHandler = new FileHandler
 
   val inputFileList: List[File] = inputDirs.toList.flatMap { fileHandler.getListOfFiles(_) }
@@ -40,6 +42,12 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
   def terminate(): Unit = {
     masterSocketHandler.terminate()
     Thread.currentThread.interrupt()
+  }
+
+  def openSocketChannel(): SocketChannel = {
+    val socketChannel = SocketChannel.open()
+    socketChannel.connect(masterInetSocketAddress)
+    socketChannel
   }
 
   private def sendSample(): Unit = {
@@ -67,11 +75,13 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
     this.pivots = stringToKeyArray(pivotString)
     this.slaveNum = slaveNum
 
-    pivots foreach { key =>
-      println(stringToHex(new String(key)))
-    }
-
     changeToComputeState()
+  }
+
+  def printPivotValues(): Unit = {
+    pivots foreach { pivot =>
+      println(stringToHex(keyToString(pivot)))
+    }
   }
 
   private def changeToComputeState(): Unit = {
@@ -82,6 +92,9 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
 
   private def changeToSuccessState(): Unit = {
     state = SlaveSuccessState
+
+    println("Key values (Test purpose): ")
+    printPivotValues()
 
     masterSocketHandler.sendMessage(SendableDoneMessage)
     terminate()

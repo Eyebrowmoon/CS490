@@ -7,7 +7,7 @@ package object common {
   val valueLength = 90
   val entryLength = 100
 
-  val packetSize = 1024
+  val packetSize = 512
 
   def byteToUnsigned(x: Byte): Int = if (x < 0) x.toInt + 0x100 else x.toInt
 
@@ -30,6 +30,8 @@ package object common {
         .map { _.toByte }
     } toArray
   }
+
+  def keyToString(key: Key): String = key.map(_.toChar).mkString
 
   implicit val keyOrdering = new Ordering[Key] {
 
