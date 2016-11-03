@@ -1,0 +1,20 @@
+[0m[[0minfo[0m] [0mRunning slave.Slave 121.180.234.104:24924 -I C:\gensort\data5 -O C:\gensort\out[0m
+[0m[[0mdebug[0m] [0mWaiting for threads to exit or System.exit to be called.[0m
+[0m[[0mdebug[0m] [0m  Classpath:[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\scala-2.11\classes[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\.ivy2\cache\org.scala-lang.modules\scala-pickling_2.11\jars\scala-pickling_2.11-0.10.1.jar[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\.ivy2\cache\org.scala-lang\scala-compiler\jars\scala-compiler-2.11.6.jar[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\.ivy2\cache\org.scala-lang\scala-library\jars\scala-library-2.11.6.jar[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\.ivy2\cache\org.scala-lang\scala-reflect\jars\scala-reflect-2.11.6.jar[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\.ivy2\cache\org.scala-lang.modules\scala-xml_2.11\bundles\scala-xml_2.11-1.0.3.jar[0m
+[0m[[0mdebug[0m] [0m	C:\Users\KHPARK_SURFACE\.ivy2\cache\org.scala-lang.modules\scala-parser-combinators_2.11\bundles\scala-parser-combinators_2.11-1.0.2.jar[0m
+[0m[[0mdebug[0[0m[[0mdebug[0m] [0m	Thread run-main-0 exited.[0m
+[0m[[0mdebug[0m] [0mWaiting for thread Thread-1 to terminate.[0m
+[0m[[0mdebug[0m] [0m	Thread Thread-1 exited.[0m
+[0m[[0mdebug[0m] [0mInterrupting remaining threads (should be all daemons).[0m
+[0m[[0mdebug[0m] [0mInterrupting thread ForkJoinPool-1-worker-3[0m
+[0m[[0mdebug[0m] [0m	Interrupted ForkJoinPool-1-worker-3[0m
+[0m[[0mdebug[0m] [0mInterrupting thread ForkJoinPool-1-worker-5[0m
+[0m[[0mdebug[0m] [0m	Interrupted ForkJoinPool-1-worker-5[0m
+[0m[[0mdebug[0m] [0mSandboxed run complete..[0m
+[0m[[0mdebug[0m] [0mExited with code 0[0m

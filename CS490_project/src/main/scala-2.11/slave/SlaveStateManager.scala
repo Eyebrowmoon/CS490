@@ -36,6 +36,7 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
 
   private def init(): Unit = {
     masterSocketHandler.start()
+    println(inputFileList.mkString(", "))
   }
 
   def terminate(): Unit = {
