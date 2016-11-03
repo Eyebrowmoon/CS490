@@ -12,4 +12,3 @@ abstract class SendableMessage extends Message
 case class SendableSampleMessage(numData: Long, sampleSize: Int) extends SendableMessage
 case class SlaveInfoMessage(slaveIP: Array[String], pivots: String, slaveNum: Int) extends SendableMessage
 case object SendableDoneMessage extends SendableMessage
-case object AckMessage extends SendableMessage

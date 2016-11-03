@@ -16,7 +16,6 @@ package object common {
     cStr.reverse.padTo(2, '0').reverse.toString
   }
 
-  // For debug
   def stringToHex(str: String): String = {
     str.toList.map(charToHex).mkString
   }
