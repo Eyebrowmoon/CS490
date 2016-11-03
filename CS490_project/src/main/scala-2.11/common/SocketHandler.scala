@@ -43,10 +43,12 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
   }
 
  private def readFromKey(key: SelectionKey): String = {
-    val buffer: ByteBuffer = ByteBuffer.allocate(1024)
-    socketChannel read buffer
-    buffer.clear()
-    new String(buffer.array)
+   val buffer: ByteBuffer = ByteBuffer.allocate(packetSize)
+   val size = socketChannel read buffer
+   buffer.clear()
+
+   if (size >= 0) buffer.array.map(_.toChar).mkString.substring(0, size)
+   else ""
   }
 
   override def run(): Unit = {
@@ -92,7 +94,10 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
   }
 
   private def sendBlock(str: String): Unit = {
-    val buffer = ByteBuffer.wrap(str.getBytes)
+    val buffer = ByteBuffer.allocate(packetSize)
+    buffer.put(str.toCharArray.map{_.toByte})
+    buffer.flip()
+
     socketChannel write buffer
     buffer.clear()
   }
