@@ -4,7 +4,7 @@ import java.io.File
 import java.net.{InetSocketAddress, Socket}
 import java.nio.channels.{SelectionKey, SocketChannel}
 
-import common._
+import common.{AckMessage, _}
 
 abstract class SlaveState
 object SlaveConnectState extends SlaveState
@@ -36,7 +36,6 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
 
   private def init(): Unit = {
     masterSocketHandler.start()
-    sendSample()
   }
 
   def terminate(): Unit = {
@@ -73,6 +72,7 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
 
   private def connectHandleMessage(message: Message) = message match {
     case SlaveInfoMessage(slaveIP, pivots, slaveNum) => handleSlaveInfoMessage(slaveIP, pivots, slaveNum)
+    case AckMessage => sendSample()
     case _ =>
   }
 

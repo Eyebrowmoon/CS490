@@ -88,6 +88,7 @@ class SocketHandler(socketChannel: SocketChannel, stateManager: StateManager)
     case SendableSampleMessage(numData, sampleSize) => handleSampleMessage(numData, sampleSize)
     case SlaveInfoMessage(pivots, slaveIP, slaveNum) => stateManager.addMessage(message)
     case SendableDoneMessage => stateManager.addMessage(DoneMessage(this))
+    case AckMessage => stateManager.addMessage(message)
   }
 
   private def sendBlock(str: String): Unit = {

@@ -12,7 +12,7 @@
 [debug] == resolving dependencies for default#cs490_project$sources_2.11;1.0 [compile]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-pickling_2.11;0.10.1 [compile->default(compile)]
 [info] Resolving org.scala-lang.modules#scala-pickling_2.11;0.10.1 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@473df7
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@fddc88
 [debug] sbt-chain: module revision found in cache: org.scala-lang.modules#scala-pickling_2.11;0.10.1
 [debug] 	found org.scala-lang.modules#scala-pickling_2.11;0.10.1 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-pickling_2.11;0.10.1 [compile->runtime]
@@ -20,7 +20,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-pickling_2.11;0.10.1 [compile->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-compiler;2.11.6 [compile->default(compile)]
 [info] Resolving org.scala-lang#scala-compiler;2.11.6 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@7f2a9e
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@1f3a9c9
 [debug] sbt-chain: module revision found in cache: org.scala-lang#scala-compiler;2.11.6
 [debug] 	found org.scala-lang#scala-compiler;2.11.6 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-compiler;2.11.6 [compile->runtime]
@@ -28,7 +28,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-compiler;2.11.6 [compile->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-library;2.11.6 [compile->default(compile)]
 [info] Resolving org.scala-lang#scala-library;2.11.6 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@13d8da3
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@8c0aac
 [debug] sbt-chain: module revision found in cache: org.scala-lang#scala-library;2.11.6
 [debug] 	found org.scala-lang#scala-library;2.11.6 in sbt-chain
 [debug] 	[2.11.6] org.scala-lang#scala-library;2.11.6
@@ -37,7 +37,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-library;2.11.6 [compile->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-reflect;2.11.6 [compile->default(compile)]
 [info] Resolving org.scala-lang#scala-reflect;2.11.6 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@14d850e
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@1832c4
 [debug] sbt-chain: module revision found in cache: org.scala-lang#scala-reflect;2.11.6
 [debug] 	found org.scala-lang#scala-reflect;2.11.6 in sbt-chain
 [debug] 	[2.11.6] org.scala-lang#scala-reflect;2.11.6
@@ -46,7 +46,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang#scala-reflect;2.11.6 [compile->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-xml_2.11;1.0.3 [compile->default(compile)]
 [info] Resolving org.scala-lang.modules#scala-xml_2.11;1.0.3 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@115ed7
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@1728765
 [debug] sbt-chain: module revision found in cache: org.scala-lang.modules#scala-xml_2.11;1.0.3
 [debug] 	found org.scala-lang.modules#scala-xml_2.11;1.0.3 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-xml_2.11;1.0.3 [compile->runtime]
@@ -54,7 +54,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-xml_2.11;1.0.3 [compile->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-parser-combinators_2.11;1.0.2 [compile->default(compile)]
 [info] Resolving org.scala-lang.modules#scala-parser-combinators_2.11;1.0.2 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@11cbd94
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@22451f
 [debug] sbt-chain: module revision found in cache: org.scala-lang.modules#scala-parser-combinators_2.11;1.0.2
 [debug] 	found org.scala-lang.modules#scala-parser-combinators_2.11;1.0.2 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-parser-combinators_2.11;1.0.2 [compile->runtime]
@@ -189,7 +189,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scala-lang.modules#scala-parser-combinators_2.11;1.0.2 [test->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scalatest#scalatest_2.11;2.2.4 [test->default(compile)]
 [info] Resolving org.scalatest#scalatest_2.11;2.2.4 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@148e37e
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@14676f1
 [debug] sbt-chain: module revision found in cache: org.scalatest#scalatest_2.11;2.2.4
 [debug] 	found org.scalatest#scalatest_2.11;2.2.4 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scalatest#scalatest_2.11;2.2.4 [test->runtime]
@@ -197,7 +197,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.scalatest#scalatest_2.11;2.2.4 [test->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->junit#junit;4.10 [test->default(compile)]
 [info] Resolving junit#junit;4.10 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@17d531d
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@2b40d4
 [debug] sbt-chain: module revision found in cache: junit#junit;4.10
 [debug] 	found junit#junit;4.10 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->junit#junit;4.10 [test->runtime]
@@ -205,7 +205,7 @@
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->junit#junit;4.10 [test->master]
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.hamcrest#hamcrest-core;1.1 [test->default(compile)]
 [info] Resolving org.hamcrest#hamcrest-core;1.1 ...
-[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@42547b
+[debug] sbt-chain: Checking cache for: sbt.ivyint.MergedDescriptors@98874d
 [debug] sbt-chain: module revision found in cache: org.hamcrest#hamcrest-core;1.1
 [debug] 	found org.hamcrest#hamcrest-core;1.1 in sbt-chain
 [debug] == resolving dependencies default#cs490_project$sources_2.11;1.0->org.hamcrest#hamcrest-core;1.1 [test->runtime]
@@ -559,7 +559,7 @@
 [debug] 	[NOT REQUIRED] org.scala-lang.modules#scala-xml_2.11;1.0.1!scala-xml_2.11.jar(src)
 [debug] 	[NOT REQUIRED] org.scala-lang.modules#scala-parser-combinators_2.11;1.0.1!scala-parser-combinators_2.11.jar(src)
 [debug] 	[NOT REQUIRED] jline#jline;2.11!jline.jar(src)
-[debug] :: resolution report :: resolve 348ms :: artifacts dl 15ms
+[debug] :: resolution report :: resolve 381ms :: artifacts dl 20ms
 [debug] 	report for default#cs490_project$sources_2.11;1.0 compile produced in C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\resolution-cache\reports\default-cs490_project$sources_2.11-compile.xml
 [debug] 	report for default#cs490_project$sources_2.11;1.0 runtime produced in C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\resolution-cache\reports\default-cs490_project$sources_2.11-runtime.xml
 [debug] 	report for default#cs490_project$sources_2.11;1.0 test produced in C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\resolution-cache\reports\default-cs490_project$sources_2.11-test.xml
@@ -573,4 +573,4 @@
 [debug] 	report for default#cs490_project$sources_2.11;1.0 docs produced in C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\resolution-cache\reports\default-cs490_project$sources_2.11-docs.xml
 [debug] 	report for default#cs490_project$sources_2.11;1.0 pom produced in C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\resolution-cache\reports\default-cs490_project$sources_2.11-pom.xml
 [debug] 	report for default#cs490_project$sources_2.11;1.0 scala-tool produced in C:\Users\KHPARK_SURFACE\Desktop\Study\CS490\CS490\CS490_project\target\resolution-cache\reports\default-cs490_project$sources_2.11-scala-tool.xml
-[debug] 	resolve done (348ms resolve - 15ms download)
+[debug] 	resolve done (381ms resolve - 20ms download)

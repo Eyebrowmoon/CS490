@@ -74,6 +74,7 @@ class MasterStateManager(numSlave: Int) extends StateManager {
     val socketHandler: SocketHandler = new SocketHandler(socketChannel, this)
     connected += socketHandler
     socketHandler.start()
+    socketHandler.sendMessage(AckMessage)
   }
 
   private def handlePivotMessage(pivots: List[Key]): Unit = {
