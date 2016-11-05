@@ -6,7 +6,10 @@ import java.nio.channels.FileChannel
 
 import common._
 
-class FileHandler {
+class FileHandler(inputDirs: Array[String], outputDir: String) {
+
+  val inputFileList: List[File] = inputDirs.toList.flatMap(getListOfFiles)
+  val dataSize: Long = inputFileList.map{ _.length }.sum
 
   val entryBuffer: ByteBuffer = ByteBuffer.allocateDirect(entryLength)
 
@@ -51,5 +54,13 @@ class FileHandler {
     cin.close()
 
     result
+  }
+
+  def sampleFromInput(): String = {
+    val sampleSize: Int = List[Long](MAX_SAMPLE_SIZE, dataSize).min.toInt
+    val sampleRatio: Double = sampleSize * 1.0 / dataSize
+    val sampleStrings: List[String] = inputFileList map sampleSingleFile(sampleRatio)
+
+    sampleStrings.mkString
   }
 }

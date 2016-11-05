@@ -1,14 +1,53 @@
 package slave
 
-object Slave {
+import java.util.concurrent.LinkedBlockingQueue
+
+import common.Message
+import io.netty.bootstrap.Bootstrap
+import io.netty.channel.Channel
+import io.netty.channel.nio.NioEventLoopGroup
+import io.netty.channel.socket.nio.NioSocketChannel
+
+class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir: String) {
+
+  val messageQueue: LinkedBlockingQueue[Message] = new LinkedBlockingQueue[Message]()
+  val group = new NioEventLoopGroup()
+
+  def run(): Unit = {
+    try {
+      val bootstrap = new Bootstrap()
+        .group(group)
+        .channel(classOf[NioSocketChannel])
+        .handler(new SlaveChannelInitializer(messageQueue))
+
+      val channel = connectBootstrapToMaster(bootstrap)
+
+      val fileHandler = new FileHandler(inputDirs, outputDir)
+      val slaveStateManager = new SlaveStateManager(channel, fileHandler, messageQueue)
+
+
+    } finally {
+      group.shutdownGracefully()
+    }
+  }
+
+  def connectBootstrapToMaster(bootstrap: Bootstrap): Channel = {
+    val colonIdx = masterInetSocketAddress.indexOf(":")
+    val masterIP: String = masterInetSocketAddress.substring(0, colonIdx)
+    val masterPort: Int = masterInetSocketAddress.substring(colonIdx + 1).toInt
+
+    bootstrap.connect(masterIP, masterPort).channel()
+  }
+
   def main(args:Array[String]): Unit = {
     try {
-      val masterAddress = args(0)
+      val masterInetSocketAddress = args(0)
       val inputDirs = parseInputDirs(args)
       val outputDirs = parseOutputDir(args)
 
-      (new SlaveStateManager(masterAddress, inputDirs, outputDirs)).run()
+      (new Slave(masterInetSocketAddress, inputDirs, outputDirs)).run()
     } catch {
+      case e: ArrayIndexOutOfBoundsException => printUsage()
       case e: IllegalArgumentException => printUsage()
       case e: Exception => e.printStackTrace()
     }
@@ -34,7 +73,7 @@ object Slave {
   }
 
   def printUsage(): Unit = {
-    println("slave <master IP:Port> -I" +
+    println("Usage: slave <master IP:Port> -I" +
       " <input directory> <input directory> ... <input directory>" +
       " -O <output directory>")
   }

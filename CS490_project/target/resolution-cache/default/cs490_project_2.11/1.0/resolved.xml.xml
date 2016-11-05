@@ -4,7 +4,7 @@
 		module="cs490_project_2.11"
 		revision="1.0"
 		status="integration"
-		publication="20161104023656"
+		publication="20161105042232"
 	>
 		<description>
 		CS490_project
@@ -37,5 +37,6 @@
 		<dependency org="org.scala-lang.modules" name="scala-pickling_2.11" rev="0.10.1" conf="compile->default(compile)"/>
 		<dependency org="org.scalatest" name="scalatest_2.11" rev="2.2.4" conf="test->default(compile)"/>
 		<dependency org="junit" name="junit" rev="4.10" conf="test->default(compile)"/>
+		<dependency org="io.netty" name="netty-all" rev="4.0.42.Final" conf="compile->default(compile)"/>
 	</dependencies>
 </ivy-module>

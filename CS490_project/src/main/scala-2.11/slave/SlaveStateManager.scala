@@ -1,68 +1,52 @@
 package slave
 
-import java.io.File
-import java.net.{InetSocketAddress, Socket}
-import java.nio.channels.{SelectionKey, SocketChannel}
+import java.util.concurrent.LinkedBlockingQueue
 
 import common.{AckMessage, _}
+import io.netty.channel.Channel
 
 abstract class SlaveState
 object SlaveConnectState extends SlaveState
 object SlaveComputeState extends SlaveState
 object SlaveSuccessState extends SlaveState
 
-class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputDir: String)
-  extends StateManager {
-
-  val masterIP: String = masterAddress.substring(0, masterAddress.indexOf(":"))
-  val masterPort: Int = masterAddress.substring(masterAddress.indexOf(":") + 1).toInt
-  val masterInetSocketAddress = new InetSocketAddress(masterIP, masterPort)
-
-  val masterSocketHandler: SocketHandler = new SocketHandler(openSocketChannel, this)
-  val fileHandler = new FileHandler
-
-  val inputFileList: List[File] = inputDirs.toList.flatMap { fileHandler.getListOfFiles(_) }
-  val dataSize: Long = inputFileList.map{ _.length }.sum
+class SlaveStateManager(channel: Channel, fileHandler: FileHandler, messageQueue: LinkedBlockingQueue[Message]) {
 
   var state: SlaveState = SlaveConnectState
   var slaveNum: Int = _
   var pivots: Array[Key] = _
   var slaveIP: Array[String] = _
 
-  override def run() = {
-    init()
-    super.run()
+  def interrupted: Boolean = Thread.currentThread.isInterrupted
+
+  private def messageHandleLoop(): Unit = {
+    try {
+      while (!interrupted) {
+        val msg = messageQueue.take()
+        handleMessage(msg)
+      }
+    } catch {
+      case e: InterruptedException =>
+      case e: Exception => e.printStackTrace()
+    }
   }
 
-  private def init(): Unit = {
-    masterSocketHandler.start()
-    println(inputFileList.mkString(", "))
+  def run() = {
+    init()
+    messageHandleLoop()
   }
+
+  private def init(): Unit = { }
 
   def terminate(): Unit = {
-    masterSocketHandler.terminate()
     Thread.currentThread.interrupt()
   }
 
-  def openSocketChannel(): SocketChannel = {
-    val socketChannel = SocketChannel.open()
-    socketChannel.connect(masterInetSocketAddress)
-    socketChannel
-  }
-
   private def sendSample(): Unit = {
-    val sampleString = sampleFromInput()
+    val sampleString = fileHandler.sampleFromInput()
 
-    masterSocketHandler.sendMessage(new SendableSampleMessage(dataSize, sampleString.length))
-    masterSocketHandler.sendString(sampleString)
-  }
-
-  private def sampleFromInput(): String = {
-    val sampleSize: Int = List[Long](MAX_SAMPLE_SIZE, dataSize).min.toInt
-    val sampleRatio: Double = sampleSize * 1.0 / dataSize
-    val sampleStrings: List[String] = inputFileList map fileHandler.sampleSingleFile(sampleRatio)
-
-    sampleStrings.mkString
+    sendMessage(new SendableSampleMessage(fileHandler.dataSize, sampleString.length))
+    sendString(sampleString)
   }
 
   protected def handleMessage(message: Message): Unit = state match {
@@ -103,7 +87,7 @@ class SlaveStateManager(masterAddress: String, inputDirs: Array[String], outputD
     println("Key values (Test purpose): ")
     printPivotValues()
 
-    masterSocketHandler.sendMessage(SendableDoneMessage)
+    sendMessage(SendableDoneMessage)
     terminate()
   }
 
