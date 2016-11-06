@@ -21,10 +21,6 @@ class MasterNetworkHandler(master: Master) extends SimpleChannelInboundHandler[M
     val channel = ctx.channel
     if (master tryAddToSlaveAndRemoveFromConnected channel)
       master addMessage message
-    else {
-      val channelFuture = ctx.writeAndFlush(SlaveFullMessage)
-      channelFuture.addListener(ChannelFutureListener.CLOSE)
-    }
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, msg: Message) = {

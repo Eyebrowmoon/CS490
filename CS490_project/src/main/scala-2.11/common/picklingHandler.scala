@@ -1,10 +1,9 @@
 package common
 
-import java.io.{ByteArrayInputStream, InputStream}
+import java.io.{ByteArrayInputStream}
 import java.util
 
-import io.netty.channel.{ChannelFuture, ChannelHandlerContext}
-import io.netty.handler.codec.http.LastHttpContent
+import io.netty.channel.{ChannelHandlerContext}
 import io.netty.handler.codec.{MessageToMessageDecoder, MessageToMessageEncoder}
 import io.netty.handler.stream.ChunkedStream
 

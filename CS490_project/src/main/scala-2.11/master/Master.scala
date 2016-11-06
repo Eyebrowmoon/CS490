@@ -5,8 +5,8 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import common._
 import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.Channel
-import io.netty.channel.group.DefaultChannelGroup
+import io.netty.channel.{Channel}
+import io.netty.channel.group.{ChannelGroupFuture, ChannelGroupFutureListener, DefaultChannelGroup}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.util.concurrent.GlobalEventExecutor
@@ -14,7 +14,6 @@ import io.netty.util.concurrent.GlobalEventExecutor
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.Try
 
 class Master(numSlave: Int) {
   import Master._
@@ -152,7 +151,10 @@ class Master(numSlave: Int) {
     printSlaveIP()
     startPivotCalculator()
 
-    //connected.close().awaitUninterruptibly()
+    val channelGroupFuture = connected.writeAndFlush(SlaveFullMessage)
+    channelGroupFuture.addListener(new ChannelGroupFutureListener{
+      override def operationComplete(future: ChannelGroupFuture): Unit = connected.close()
+    })
   }
 
   private def changeToComputeState(): Unit = {
