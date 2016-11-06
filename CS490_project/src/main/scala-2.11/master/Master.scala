@@ -5,15 +5,16 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import common._
 import io.netty.bootstrap.ServerBootstrap
+import io.netty.channel.Channel
 import io.netty.channel.group.DefaultChannelGroup
 import io.netty.channel.nio.NioEventLoopGroup
-import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
 import io.netty.util.concurrent.GlobalEventExecutor
 
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Try
 
 class Master(numSlave: Int) {
   import Master._
@@ -22,6 +23,8 @@ class Master(numSlave: Int) {
   private val messageQueue: LinkedBlockingQueue[Message] = new LinkedBlockingQueue[Message]()
   private val samples: mutable.MutableList[Key] = mutable.MutableList.empty
   private val slaveAddressList: mutable.MutableList[String] = mutable.MutableList.empty
+
+  private val connected = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE)
   private val slaves = new DefaultChannelGroup(GlobalEventExecutor.INSTANCE)
 
   private var state: MasterState = MasterInitState
@@ -67,9 +70,21 @@ class Master(numSlave: Int) {
   /* BlockingQueue is thread safe, and so this method is also thread safe */
   def addMessage(message: Message): Unit = messageQueue add message
 
-  def addSlave(channel: SocketChannel): Unit = slaves add channel
+  def tryAddToConnected(channel: Channel): Boolean = synchronized {
+    if (state == MasterInitState) {
+      connected add channel
+    } else false
+  }
 
-  protected def handleMessage(message: Message): Unit = state match {
+  def tryAddToSlaveAndRemoveFromConnected(channel: Channel): Boolean = synchronized {
+    if (numSampleFinishedSlave < numSlave) {
+      numSampleFinishedSlave += 1
+
+      (slaves add channel) && (connected remove channel)
+    } else false
+  }
+
+  private def handleMessage(message: Message): Unit = state match {
     case MasterInitState => initHandleMessage(message)
     case MasterSampleState => sampleHandleMessage(message)
     case MasterComputeState => computeHandleMessage(message)
@@ -106,7 +121,6 @@ class Master(numSlave: Int) {
 
     samples ++= keyArray
     slaveAddressList += address
-    numSampleFinishedSlave += 1
 
     if (numSampleFinishedSlave >= numSlave)
       changeToSampleState()
@@ -137,6 +151,8 @@ class Master(numSlave: Int) {
 
     printSlaveIP()
     startPivotCalculator()
+
+    //connected.close().awaitUninterruptibly()
   }
 
   private def changeToComputeState(): Unit = {
@@ -152,6 +168,10 @@ class Master(numSlave: Int) {
     val IPAddress: String = InetAddress.getLocalHost.getHostAddress
     println(s"$IPAddress:$port")
   }
+}
+
+object Master {
+  val port: Int = 24924
 
   def main(args: Array[String]): Unit = {
     try{
@@ -165,8 +185,4 @@ class Master(numSlave: Int) {
   }
 
   def printUsage(): Unit = println("Usage: master <# of slaves>")
-}
-
-object Master {
-  val port: Int = 24924
 }
