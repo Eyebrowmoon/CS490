@@ -4,7 +4,7 @@
 		module="cs490_project_2.11"
 		revision="1.0"
 		status="integration"
-		publication="20161106220812"
+		publication="20161120045518"
 	>
 		<description>
 		CS490_project
@@ -38,5 +38,7 @@
 		<dependency org="org.scalatest" name="scalatest_2.11" rev="2.2.4" conf="test->default(compile)"/>
 		<dependency org="junit" name="junit" rev="4.10" conf="test->default(compile)"/>
 		<dependency org="io.netty" name="netty-all" rev="4.0.42.Final" conf="compile->default(compile)"/>
+		<dependency org="ch.qos.logback" name="logback-classic" rev="1.1.7" conf="compile->default(compile)"/>
+		<dependency org="com.typesafe.scala-logging" name="scala-logging_2.11" rev="3.5.0" conf="compile->default(compile)"/>
 	</dependencies>
 </ivy-module>

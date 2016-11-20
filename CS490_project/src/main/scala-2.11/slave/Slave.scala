@@ -3,13 +3,19 @@ package slave
 import java.net.InetAddress
 import java.util.concurrent.LinkedBlockingQueue
 
+import com.typesafe.scalalogging.Logger
 import common.{DoneMessage, SampleMessage, SlaveInfoMessage, _}
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.Channel
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+
 class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir: String) {
+
+  val logger = Logger("Slave")
 
   private val fileHandler = new FileHandler(inputDirs, outputDir)
   private val messageQueue: LinkedBlockingQueue[Message] = new LinkedBlockingQueue[Message]()
@@ -71,7 +77,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
 
   protected def handleMessage(message: Message, channel: Channel): Unit = state match {
     case SlaveConnectState => connectHandleMessage(message, channel)
-    case SlaveComputeState =>
+    case SlaveComputeState => computeHandleMessage(message, channel)
     case SlaveSuccessState =>
   }
 
@@ -81,31 +87,49 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     case _ =>
   }
 
+  private def computeHandleMessage(message: Message, channel: Channel) = message match {
+    case PartitionDoneMessage(partitions) => changeToSuccessState(channel) // Temporary
+    case _ =>
+  }
+
+  private def startPartitioner(pivots: Array[Key]): Unit = {
+    logger.info("Start Partitioner")
+
+    val partitionFuture = new Partitioner(fileHandler, pivots).partitionFiles()
+    partitionFuture onSuccess {case partitions => this.addMessage(PartitionDoneMessage(partitions))}
+  }
+
   private def handleSlaveInfoMessage(slaveIP: Array[String], pivotString: String, channel: Channel): Unit = {
+    val pivots = stringToKeyArray(pivotString)
+
+    logger.info("Received SlaveInfoMessage")
+
+    this.pivots = pivots
     this.slaveIP = slaveIP
-    this.pivots = stringToKeyArray(pivotString)
 
     changeToComputeState(channel)
+
+    printPivotValues()
+    startPartitioner(pivots)
   }
 
   def printPivotValues(): Unit = {
+    logger.debug("Key values (Test purpose): ")
     pivots foreach { pivot =>
-      println(stringToHex(keyToString(pivot)))
+      logger.debug(stringToHex(keyToString(pivot)))
     }
   }
 
   private def changeToComputeState(channel: Channel): Unit = {
-    state = SlaveComputeState
+    logger.info("Change to ComputeState")
 
-    changeToSuccessState(channel) // Temporary
+    state = SlaveComputeState
   }
 
   private def changeToSuccessState(channel: Channel): Unit = {
-    state = SlaveSuccessState
+    logger.info("Change to SuccessState")
 
-    println("Key values (Test purpose): ")
-    printPivotValues()
-    println("")
+    state = SlaveSuccessState
 
     channel write DoneMessage
     channel flush

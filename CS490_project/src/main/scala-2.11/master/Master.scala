@@ -5,7 +5,7 @@ import java.util.concurrent.LinkedBlockingQueue
 
 import common._
 import io.netty.bootstrap.ServerBootstrap
-import io.netty.channel.{Channel}
+import io.netty.channel.Channel
 import io.netty.channel.group.{ChannelGroupFuture, ChannelGroupFutureListener, DefaultChannelGroup}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioServerSocketChannel
@@ -15,8 +15,12 @@ import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import com.typesafe.scalalogging.Logger
+
 class Master(numSlave: Int) {
   import Master._
+
+  val logger = Logger("Master")
 
   private val acceptorGroup, handlerGroup = new NioEventLoopGroup()
   private val messageQueue: LinkedBlockingQueue[Message] = new LinkedBlockingQueue[Message]()
@@ -111,12 +115,16 @@ class Master(numSlave: Int) {
   }
 
   private def handlePivotMessage(pivots: List[Key]): Unit = {
+    logger.info("Received PivotMessage")
+
     sendSlavesInfoMessage(pivots)
     changeToComputeState()
   }
 
   private def handleSampleMessage(address: String, numData: Long, keys: String): Unit = {
     val keyArray = stringToKeyArray(keys)
+
+    logger.info("Received SampleMessage")
 
     samples ++= keyArray
     slaveAddressList += address
@@ -126,12 +134,16 @@ class Master(numSlave: Int) {
   }
 
   private def handleDoneMessage(): Unit = {
+    logger.info("Received DoneMessage")
+
     numComputeFinishedSlave += 1
     if (numComputeFinishedSlave >= numSlave)
       changeToSuccessState()
   }
 
   private def sendSlavesInfoMessage(pivots: List[Key]): Unit = {
+    logger.info("Send SlaveInfoMessage")
+
     val pivotString: String = pivots map { pivot =>
       pivot map {_.toChar} mkString
     } mkString
@@ -141,11 +153,15 @@ class Master(numSlave: Int) {
   }
 
   private def startPivotCalculator(): Unit = {
+    logger.info("Start PivotCalculator")
+
     val pivotFuture: Future[List[Key]] = PivotCalculator.getPivots(samples.toList, numSlave)
-    pivotFuture onSuccess  { case pivots => this.addMessage(PivotMessage(pivots)) }
+    pivotFuture onSuccess { case pivots => this.addMessage(PivotMessage(pivots)) }
   }
 
   private def changeToSampleState(): Unit = {
+    logger.info("Change to SampleState")
+
     state = MasterSampleState
 
     printSlaveIP()
@@ -158,10 +174,14 @@ class Master(numSlave: Int) {
   }
 
   private def changeToComputeState(): Unit = {
+    logger.info("Change to ComputeState")
+
     state = MasterComputeState
   }
 
   private def changeToSuccessState(): Unit = {
+    logger.info("Change to SuccessState")
+
     state = MasterSuccessState
     terminate()
   }
