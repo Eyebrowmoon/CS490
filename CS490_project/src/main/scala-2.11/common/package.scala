@@ -12,7 +12,10 @@ package object common {
   val keyLength = 10
   val valueLength = 90
   val entryLength = 100
+
   val packetSize = 1024
+
+  val numPartitionForSlave: Int = 8
 
   val MIN_KEY: Key = Array.fill[Byte](keyLength)(0.toByte)
   val MAX_KEY: Key = Array.fill[Byte](keyLength)(0xff.toByte)

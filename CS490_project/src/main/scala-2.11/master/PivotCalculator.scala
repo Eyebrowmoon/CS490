@@ -6,8 +6,6 @@ import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
 object PivotCalculator {
-  val numPartitionForSlave: Int = 8
-
   def getPivots(samples: List[Key], numSlave: Int): Future[List[Key]] = Future {
     val numPartition: Int = numSlave * numPartitionForSlave
     val pivotInterval: Int = samples.size / numPartition

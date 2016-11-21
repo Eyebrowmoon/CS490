@@ -105,6 +105,7 @@ class Master(numSlave: Int) {
   }
 
   private def computeHandleMessage(message: Message): Unit = message match {
+    case FileInfoMessage(files, ownerIP) => handleFileInfoMessage(FileInfoMessage(files, ownerIP))
     case DoneMessage => handleDoneMessage()
     case _ =>
   }
@@ -117,8 +118,8 @@ class Master(numSlave: Int) {
   private def handlePivotMessage(pivots: List[Key]): Unit = {
     logger.info("Received PivotMessage")
 
-    sendSlavesInfoMessage(pivots)
     changeToComputeState()
+    sendSlavesInfoMessage(pivots)
   }
 
   private def handleSampleMessage(address: String, numData: Long, keys: String): Unit = {
@@ -131,6 +132,12 @@ class Master(numSlave: Int) {
 
     if (numSampleFinishedSlave >= numSlave)
       changeToSampleState()
+  }
+
+  private def handleFileInfoMessage(fileInfoMessage: FileInfoMessage): Unit = {
+    logger.info("Received FileInfoMessage")
+
+    slaves.writeAndFlush(fileInfoMessage)
   }
 
   private def handleDoneMessage(): Unit = {

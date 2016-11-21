@@ -2,7 +2,6 @@ package slave
 
 import common._
 
-import scala.concurrent.Future
 import java.io._
 import java.nio.BufferUnderflowException
 import java.nio.channels.FileChannel
@@ -13,9 +12,10 @@ import com.typesafe.scalalogging.Logger
 import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.util.Sorting
+import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class Partitioner(fileHandler: FileHandler, pivots: Array[Key]) {
+class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
 
   val logger = Logger("Partitioner")
 
@@ -108,35 +108,35 @@ class Partitioner(fileHandler: FileHandler, pivots: Array[Key]) {
     out.close()
   }
 
-  private def partitionSingleFile(file: File): Vector[String] = {
-    val numChunk: Int = Math.ceil(file.length.toDouble / numEntriesPerChunk / entryLength).toInt
-    val fileIndex = fileHandler.inputFileList indexOf file
+  private def mergeChunksGroupedByPartition(chunks: Vector[Vector[String]], fileIndex: Int): Vector[String] = {
+    chunks.indices map { partitionNum =>
+      val fileName = s"${fileHandler.outputDir}/partition_${fileIndex}_${partitionNum}_${slaveNum}"
+      val files = chunks(partitionNum)
 
-    logger.info(s"Partition ${file.getCanonicalPath}")
-
-    val chunkPartitionFiles = (0 until numChunk) map partitionSingleChunk(file, fileIndex) toVector
-    val chunksGroupedByPartition: Vector[Vector[String]] = (0 until numPartition) map { i =>
-      chunkPartitionFiles.map { files: Vector[String] => files.apply(i) }
-    } toVector
-
-    chunksGroupedByPartition.indices map { partitionNum =>
-      val fileName = s"${fileHandler.outputDir}/partition_${fileIndex}_${partitionNum}"
-      val files = chunksGroupedByPartition(partitionNum)
-
-      mergeSinglePartitionChunks(fileName)(chunksGroupedByPartition(partitionNum))
+      mergeSinglePartitionChunks(fileName)(chunks(partitionNum))
       files foreach {file => new File(file).delete()}
 
       fileName
     } toVector
   }
 
+  private def partitionSingleFile(file: File): Vector[String] = {
+    val numChunk: Int = Math.ceil(file.length.toDouble / numEntriesPerChunk / entryLength).toInt
+    val fileIndex = fileHandler.inputFileList indexOf file
+
+    logger.info(s"Partition ${file.getCanonicalPath}")
+
+    val chunkedFiles = (0 until numChunk) map partitionSingleChunk(file, fileIndex) toVector
+    val chunksGroupedByPartition: Vector[Vector[String]] = chunkedFiles.transpose
+
+    mergeChunksGroupedByPartition(chunksGroupedByPartition, fileIndex)
+  }
+
   def partitionFiles(): Future[Vector[Vector[String]]] = Future {
     logger.info("Partition start")
-
-    val result = fileHandler.inputFileList map partitionSingleFile toVector
-
+    val partitionedFiles = fileHandler.inputFileList.map(partitionSingleFile).toVector
     logger.info("Partition end")
 
-    result
+    partitionedFiles.transpose
   }
 }

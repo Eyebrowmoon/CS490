@@ -4,7 +4,7 @@
 		module="cs490_project$sbt_2.11"
 		revision="1.0"
 		status="integration"
-		publication="20161120045536"
+		publication="20161122013057"
 	/>
 	<configurations>
 		<conf name="default" visibility="public"/>
