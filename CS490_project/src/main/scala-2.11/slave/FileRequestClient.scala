@@ -16,12 +16,15 @@ import io.netty.util.CharsetUtil
 
 class FileRequestManager(ownerIP: String, path: String) {
 
+  val logger = Logger(s"FileRequestManager(${path})")
+
   val raf = new RandomAccessFile(path, "w")
   val cin = raf.getChannel
 
   val group = new NioEventLoopGroup()
 
   def run(): Unit = {
+    logger.info("Start running")
     try {
       val bootstrap = new Bootstrap()
         .group(group)
@@ -34,6 +37,7 @@ class FileRequestManager(ownerIP: String, path: String) {
       raf.close()
       cin.close()
     }
+    logger.info("Terminate")
   }
 }
 

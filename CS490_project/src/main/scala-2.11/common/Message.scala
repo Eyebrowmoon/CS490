@@ -9,3 +9,4 @@ case class FileInfoMessage(files: Vector[Vector[String]], ownerIP: String) exten
 case class FileRequestDoneMessage(ownerIP: String) extends Message
 case object SlaveFullMessage extends Message
 case object DoneMessage extends Message
+case object TerminateMessage extends Message

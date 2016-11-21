@@ -1,5 +1,6 @@
 package master
 
+import java.io.IOException
 import java.net.InetAddress
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -14,7 +15,6 @@ import io.netty.util.concurrent.GlobalEventExecutor
 import scala.collection.mutable
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
-
 import com.typesafe.scalalogging.Logger
 
 class Master(numSlave: Int) {
@@ -192,6 +192,9 @@ class Master(numSlave: Int) {
     logger.info("Change to SuccessState")
 
     state = MasterSuccessState
+
+    slaves.writeAndFlush(TerminateMessage).sync()
+
     terminate()
   }
 

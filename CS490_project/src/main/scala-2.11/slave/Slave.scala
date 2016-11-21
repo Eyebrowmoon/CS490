@@ -94,7 +94,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   protected def handleMessage(message: Message, channel: Channel): Unit = state match {
     case SlaveConnectState => connectHandleMessage(message, channel)
     case SlaveComputeState => computeHandleMessage(message, channel)
-    case SlaveSuccessState =>
+    case SlaveSuccessState => successHandleMessage(message, channel)
   }
 
   private def connectHandleMessage(message: Message, channel: Channel) = message match {
@@ -107,6 +107,11 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     case PartitionDoneMessage(partitions) => handlePartitionDoneMessage(partitions, channel)
     case FileInfoMessage(files, ownerIP) => handleFileInfoMessage(files, ownerIP, channel)
     case FileRequestDoneMessage(ownerIP) => handleFileRequestDoneMessage(ownerIP, channel)
+    case _ =>
+  }
+
+  private def successHandleMessage(message: Message, channel: Channel) = message match {
+    case TerminateMessage => handleTerminateMessage()
     case _ =>
   }
 
@@ -143,8 +148,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def handleFileInfoMessage(files: Vector[Vector[String]], ownerIP: String, channel: Channel): Unit = {
     logger.info("Received FileInfoMessage")
 
-    if (ownerIP != myIP)
-      requestFiles(files, ownerIP)
+    if (ownerIP != myIP) requestFiles(files, ownerIP)
   }
 
   private def handleFileRequestDoneMessage(ownerIP: String, channel: Channel): Unit = {
@@ -154,10 +158,17 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
       changeToSuccessState(channel)
   }
 
-  private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
-    val filesFlatten = myPartitionIndices.map{files(_)}.flatten
+  private def handleTerminateMessage(): Unit = {
+    logger.info("Received TerminateMessage")
 
-    val requestFuture = Future{ filesFlatten foreach requestSingleFile(ownerIP) }
+    terminate()
+  }
+
+  private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
+    logger.info(s"Request files to $ownerIP")
+
+    val filesFlatten = myPartitionIndices.map{files(_)}.flatten
+    val requestFuture = Future { filesFlatten foreach requestSingleFile(ownerIP) }
     requestFuture onSuccess { case () => this.addMessage(FileRequestDoneMessage(ownerIP)) }
   }
 
@@ -189,7 +200,6 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     channel.writeAndFlush(DoneMessage).sync()
 
     fileRequestServer.terminate()
-    terminate()
   }
 }
 

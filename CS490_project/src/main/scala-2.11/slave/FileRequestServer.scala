@@ -14,10 +14,13 @@ import io.netty.util.CharsetUtil
 
 class FileRequestServer extends Thread {
 
+  val logger = Logger("FileRequestServer")
+
   val bossGroup, workerGroup = new NioEventLoopGroup()
   var channelOption: Option[Channel] = None
 
   override def run(): Unit = {
+    logger.info("Start running")
     try {
       val bootstrap = new ServerBootstrap()
         .group(bossGroup, workerGroup)
@@ -32,6 +35,7 @@ class FileRequestServer extends Thread {
       bossGroup.shutdownGracefully()
       workerGroup.shutdownGracefully()
     }
+    logger.info("Terminate")
   }
 
   def terminate(): Unit = channelOption match {
