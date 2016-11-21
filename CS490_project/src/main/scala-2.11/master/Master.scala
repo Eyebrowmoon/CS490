@@ -67,6 +67,8 @@ class Master(numSlave: Int) {
   }
 
   def terminate(): Unit = {
+    logger.info("Terminate")
+
     Thread.currentThread().interrupt()
   }
 

@@ -6,7 +6,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import com.typesafe.scalalogging.Logger
 import common.{DoneMessage, SampleMessage, SlaveInfoMessage, _}
 import io.netty.bootstrap.Bootstrap
-import io.netty.channel.Channel
+import io.netty.channel.{Channel, ChannelFuture, ChannelFutureListener}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 
@@ -71,6 +71,8 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   }
 
   def terminate(): Unit = {
+    logger.info("Terminate")
+
     Thread.currentThread.interrupt()
   }
 
@@ -175,8 +177,8 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
 
     state = SlaveComputeState
 
-    startPartitioner(pivots)
     fileRequestServer.start()
+    startPartitioner(pivots)
   }
 
   private def changeToSuccessState(channel: Channel): Unit = {
@@ -184,11 +186,9 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
 
     state = SlaveSuccessState
 
+    channel.writeAndFlush(DoneMessage).sync()
+
     fileRequestServer.terminate()
-
-    channel write DoneMessage
-    channel flush
-
     terminate()
   }
 }

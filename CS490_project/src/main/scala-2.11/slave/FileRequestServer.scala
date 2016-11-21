@@ -62,6 +62,10 @@ class FileRequestServerHandler extends SimpleChannelInboundHandler[String] {
     case None =>
   }
 
+  override def channelActive(ctx: ChannelHandlerContext): Unit = {
+    logger.info("Channel active")
+  }
+
   override def channelRead0(ctx: ChannelHandlerContext, msg: String): Unit = {
     var rafOption: Option[RandomAccessFile] = None
 
