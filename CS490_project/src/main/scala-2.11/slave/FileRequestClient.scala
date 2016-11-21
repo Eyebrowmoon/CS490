@@ -1,6 +1,6 @@
 package slave
 
-import java.io.RandomAccessFile
+import java.io.{File, FileOutputStream, RandomAccessFile}
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
@@ -18,8 +18,7 @@ class FileRequestManager(ownerIP: String, path: String) {
 
   val logger = Logger(s"FileRequestManager(${path})")
 
-  val raf = new RandomAccessFile(path, "w")
-  val cin = raf.getChannel
+  val out = new FileOutputStream(new File(path))
 
   val group = new NioEventLoopGroup()
 
@@ -29,19 +28,18 @@ class FileRequestManager(ownerIP: String, path: String) {
       val bootstrap = new Bootstrap()
         .group(group)
         .channel(classOf[NioSocketChannel])
-        .handler(new FileRequestHandlerInitializer(path, cin))
+        .handler(new FileRequestHandlerInitializer(path, out))
 
       bootstrap.bind(ownerIP, slavePort).sync().channel().closeFuture().sync()
     } finally {
       group.shutdownGracefully()
-      raf.close()
-      cin.close()
+      out.close()
     }
     logger.info("Terminate")
   }
 }
 
-class FileRequestHandlerInitializer(path: String, cin: FileChannel) extends ChannelInitializer[SocketChannel] {
+class FileRequestHandlerInitializer(path: String, out: FileOutputStream) extends ChannelInitializer[SocketChannel] {
   override def initChannel(channel: SocketChannel): Unit = {
     val pipeline = channel.pipeline
 
@@ -50,11 +48,11 @@ class FileRequestHandlerInitializer(path: String, cin: FileChannel) extends Chan
     pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8))
 
     pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8))
-    pipeline.addLast(new FileRequestHandler(path, cin))
+    pipeline.addLast(new FileRequestHandler(path, out))
   }
 }
 
-class FileRequestHandler(path: String, cin: FileChannel) extends SimpleChannelInboundHandler[String] {
+class FileRequestHandler(path: String, out: FileOutputStream) extends SimpleChannelInboundHandler[String] {
 
   val logger = Logger(s"FileRequestHandler(${path})")
 
@@ -65,8 +63,7 @@ class FileRequestHandler(path: String, cin: FileChannel) extends SimpleChannelIn
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, msg: String): Unit = {
-    val byteBuffer = ByteBuffer.wrap(msg.getBytes())
-    cin.write(byteBuffer)
+    out.write(msg.getBytes())
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
