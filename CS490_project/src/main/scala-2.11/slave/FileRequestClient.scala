@@ -1,8 +1,6 @@
 package slave
 
-import java.io.{File, FileOutputStream, RandomAccessFile}
-import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
+import java.io.{File, FileOutputStream}
 
 import com.typesafe.scalalogging.Logger
 import io.netty.bootstrap.Bootstrap
@@ -19,7 +17,6 @@ class FileRequestManager(ownerIP: String, path: String) {
   val logger = Logger(s"FileRequestManager(${path})")
 
   val out = new FileOutputStream(new File(path))
-
   val group = new NioEventLoopGroup()
 
   def run(): Unit = {
@@ -30,7 +27,9 @@ class FileRequestManager(ownerIP: String, path: String) {
         .channel(classOf[NioSocketChannel])
         .handler(new FileRequestHandlerInitializer(path, out))
 
-      bootstrap.bind(ownerIP, slavePort).sync().channel().closeFuture().sync()
+      val channelFuture = bootstrap.connect(ownerIP, slavePort).sync()
+
+      channelFuture.channel().closeFuture().sync()
     } finally {
       group.shutdownGracefully()
       out.close()

@@ -6,7 +6,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import com.typesafe.scalalogging.Logger
 import common.{DoneMessage, SampleMessage, SlaveInfoMessage, _}
 import io.netty.bootstrap.Bootstrap
-import io.netty.channel.{Channel, ChannelFuture, ChannelFutureListener}
+import io.netty.channel.{Channel}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 
