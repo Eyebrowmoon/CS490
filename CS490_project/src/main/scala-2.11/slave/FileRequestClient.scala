@@ -16,7 +16,7 @@ class FileRequestManager(ownerIP: String, path: String) {
 
   val logger = Logger(s"FileRequestManager(${path})")
 
-  val out = new FileOutputStream(new File(s"${path}_received"))
+  val out = new FileOutputStream(new File(s"${path}"))
   val group = new NioEventLoopGroup()
 
   def run(): Unit = {

@@ -149,7 +149,6 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     logger.info("Received FileInfoMessage")
 
     if (ownerIP != myIP) requestFiles(files, ownerIP)
-    requestFiles(files, ownerIP)
   }
 
   private def handleFileRequestDoneMessage(ownerIP: String, channel: Channel): Unit = {
