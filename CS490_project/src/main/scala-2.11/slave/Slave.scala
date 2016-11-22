@@ -73,6 +73,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   def terminate(): Unit = {
     logger.info("Terminate")
 
+    fileRequestServer.terminate()
     Thread.currentThread.interrupt()
   }
 
@@ -198,8 +199,6 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     state = SlaveSuccessState
 
     channel.writeAndFlush(DoneMessage).sync()
-
-    fileRequestServer.terminate()
   }
 }
 
