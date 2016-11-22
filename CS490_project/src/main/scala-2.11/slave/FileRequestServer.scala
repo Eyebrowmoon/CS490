@@ -1,16 +1,19 @@
 package slave
 
-import java.io.{File, RandomAccessFile}
+import java.io.{File, FileInputStream, RandomAccessFile}
+import java.nio.{BufferUnderflowException, ByteBuffer}
+import java.nio.channels.FileChannel
 
 import com.typesafe.scalalogging.Logger
+import common.{DataMessage, MessageToStringEncoder}
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel._
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.handler.codec.LineBasedFrameDecoder
+import io.netty.handler.codec.bytes.{ByteArrayDecoder, ByteArrayEncoder}
 import io.netty.handler.codec.string.{StringDecoder, StringEncoder}
-import io.netty.handler.stream.{ChunkedFile, ChunkedWriteHandler}
+import io.netty.handler.stream.{ChunkedFile, ChunkedStream, ChunkedWriteHandler}
 import io.netty.util.CharsetUtil
 
 class FileRequestServer extends Thread {
@@ -49,9 +52,8 @@ class FileRequestServerInitializer extends ChannelInitializer[SocketChannel] {
   override def initChannel(channel: SocketChannel): Unit = {
     val pipeline = channel.pipeline
 
-    pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8))
-    pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8))
-    pipeline.addLast(new ChunkedWriteHandler())
+    pipeline.addLast(new ByteArrayEncoder())
+    pipeline.addLast(new StringDecoder())
     pipeline.addLast(new FileRequestServerHandler())
   }
 }
@@ -59,21 +61,51 @@ class FileRequestServerInitializer extends ChannelInitializer[SocketChannel] {
 class FileRequestServerHandler extends SimpleChannelInboundHandler[String] {
 
   val logger = Logger("FileRequestServerHandler")
+  val buffer = ByteBuffer.allocateDirect(4096)
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
     logger.info("Channel active")
+  }
+
+  def readEntryFromChannel(cin: FileChannel): Array[Byte] = {
+    val size = readToBuffer(cin)
+    if (size > 0) {
+      val array: Array[Byte] = new Array[Byte](size)
+      buffer.get(array)
+      array
+    } else new Array[Byte](0)
+  }
+
+  def readToBuffer(cin: FileChannel): Int = {
+    buffer.clear()
+    val result = cin.read(buffer)
+    buffer.flip()
+
+    result
   }
 
   override def channelRead0(ctx: ChannelHandlerContext, msg: String): Unit = {
     logger.info(s"File Request - $msg")
 
     val file = new File(msg)
+    val raf = new RandomAccessFile(file, "r")
+    val cin = raf.getChannel
 
-    val writeFuture = ctx.write(new ChunkedFile(file))
+    val content = readEntryFromChannel(cin)
+    val writeFuture = ctx.writeAndFlush(content)
+
     writeFuture.addListener(new ChannelFutureListener {
       override def operationComplete(future: ChannelFuture): Unit = {
-        file.delete()
-        ctx.close()
+        val content = readEntryFromChannel(cin)
+        if (content.length > 0) {
+          val future = ctx.writeAndFlush(content)
+          future.addListener(this)
+        } else {
+          raf.close()
+          cin.close()
+          file.delete()
+          ctx.close()
+        }
       }
     })
   }

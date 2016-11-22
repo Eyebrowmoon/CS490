@@ -2,6 +2,7 @@ package slave
 
 import java.io.{File, FileOutputStream}
 
+import common._
 import com.typesafe.scalalogging.Logger
 import io.netty.bootstrap.Bootstrap
 import io.netty.buffer.ByteBuf
@@ -9,9 +10,10 @@ import io.netty.channel.{ChannelHandlerContext, ChannelInitializer, SimpleChanne
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
-import io.netty.handler.codec.LineBasedFrameDecoder
+import io.netty.handler.codec.bytes.ByteArrayDecoder
+import io.netty.handler.codec.{LineBasedFrameDecoder, MessageToMessageDecoder}
 import io.netty.handler.codec.string.{StringDecoder, StringEncoder}
-import io.netty.handler.stream.ChunkedWriteHandler
+import io.netty.handler.stream.{ChunkedFile, ChunkedWriteHandler}
 import io.netty.util.CharsetUtil
 
 class FileRequestManager(ownerIP: String, path: String) {
@@ -45,13 +47,12 @@ class FileRequestHandlerInitializer(path: String, out: FileOutputStream) extends
     val pipeline = channel.pipeline
 
     pipeline.addLast(new StringEncoder(CharsetUtil.UTF_8))
-    pipeline.addLast(new StringDecoder(CharsetUtil.UTF_8))
-    pipeline.addLast(new ChunkedWriteHandler())
+    pipeline.addLast(new ByteArrayDecoder())
     pipeline.addLast(new FileRequestHandler(path, out))
   }
 }
 
-class FileRequestHandler(path: String, out: FileOutputStream) extends SimpleChannelInboundHandler[String] {
+class FileRequestHandler(path: String, out: FileOutputStream) extends SimpleChannelInboundHandler[Array[Byte]] {
 
   val logger = Logger(s"FileRequestHandler(${path})")
 
@@ -61,8 +62,8 @@ class FileRequestHandler(path: String, out: FileOutputStream) extends SimpleChan
     ctx.writeAndFlush(path)
   }
 
-  override def channelRead0(ctx: ChannelHandlerContext, msg: String): Unit = {
-    out.write(msg.toCharArray.map{_.toByte})
+  override def channelRead0(ctx: ChannelHandlerContext, msg: Array[Byte]): Unit = {
+    out.write(msg)
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
@@ -70,3 +71,4 @@ class FileRequestHandler(path: String, out: FileOutputStream) extends SimpleChan
     ctx.close()
   }
 }
+
