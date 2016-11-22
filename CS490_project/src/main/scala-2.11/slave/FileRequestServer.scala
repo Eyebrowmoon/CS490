@@ -5,16 +5,13 @@ import java.nio.{BufferUnderflowException, ByteBuffer}
 import java.nio.channels.FileChannel
 
 import com.typesafe.scalalogging.Logger
-import common.{DataMessage, MessageToStringEncoder}
 import io.netty.bootstrap.ServerBootstrap
 import io.netty.channel._
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioServerSocketChannel
-import io.netty.handler.codec.bytes.{ByteArrayDecoder, ByteArrayEncoder}
-import io.netty.handler.codec.string.{StringDecoder, StringEncoder}
-import io.netty.handler.stream.{ChunkedFile, ChunkedStream, ChunkedWriteHandler}
-import io.netty.util.CharsetUtil
+import io.netty.handler.codec.bytes.{ByteArrayEncoder}
+import io.netty.handler.codec.string.{StringDecoder}
 
 class FileRequestServer extends Thread {
 

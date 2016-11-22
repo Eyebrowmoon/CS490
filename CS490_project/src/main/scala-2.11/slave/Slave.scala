@@ -129,7 +129,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     this.slaveIP = slaveIP
 
     slaveIP foreach { requestNotFinished.add(_) }
-    //requestNotFinished.remove(myIP)
+    requestNotFinished.remove(myIP)
 
     printPivotValues(pivots)
     changeToComputeState(pivots, channel)
@@ -148,7 +148,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def handleFileInfoMessage(files: Vector[Vector[String]], ownerIP: String, channel: Channel): Unit = {
     logger.info("Received FileInfoMessage")
 
-    //if (ownerIP != myIP) requestFiles(files, ownerIP)
+    if (ownerIP != myIP) requestFiles(files, ownerIP)
     requestFiles(files, ownerIP)
   }
 

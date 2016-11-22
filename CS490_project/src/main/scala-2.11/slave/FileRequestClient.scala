@@ -2,18 +2,14 @@ package slave
 
 import java.io.{File, FileOutputStream}
 
-import common._
 import com.typesafe.scalalogging.Logger
 import io.netty.bootstrap.Bootstrap
-import io.netty.buffer.ByteBuf
 import io.netty.channel.{ChannelHandlerContext, ChannelInitializer, SimpleChannelInboundHandler}
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.bytes.ByteArrayDecoder
-import io.netty.handler.codec.{LineBasedFrameDecoder, MessageToMessageDecoder}
-import io.netty.handler.codec.string.{StringDecoder, StringEncoder}
-import io.netty.handler.stream.{ChunkedFile, ChunkedWriteHandler}
+import io.netty.handler.codec.string.{StringEncoder}
 import io.netty.util.CharsetUtil
 
 class FileRequestManager(ownerIP: String, path: String) {

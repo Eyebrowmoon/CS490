@@ -63,45 +63,44 @@ class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
     savePartitions(chunkEntries, s"chunk_${fileIndex}_${chunkIndex}")
   }
 
+  def addNewEntryToQueue(queue: mutable.PriorityQueue[(Entry, FileChannel)])(cin: FileChannel): Unit = {
+    val entry = fileHandler.readEntryFromChannel(cin)
+    queue.enqueue((entry, cin))
+  }
+
+  def tryAddNewEntryToQueue(queue: mutable.PriorityQueue[(Entry, FileChannel)])(cin: FileChannel): Unit = {
+    try { addNewEntryToQueue(queue)(cin) }
+    catch {
+      case e: BufferUnderflowException =>
+      case e: Exception => e.printStackTrace()
+    }
+  }
+
+  @tailrec
+  private def mergeLoop(queue: mutable.PriorityQueue[(Entry, FileChannel)], out: FileOutputStream): Unit = {
+    if (queue.nonEmpty) {
+      try {
+        val (entry, cin) = queue.dequeue()
+        out.write(entry)
+        addNewEntryToQueue(queue)(cin)
+      } catch {
+        case e: BufferUnderflowException =>
+        case e: Exception => e.printStackTrace()
+      }
+      mergeLoop(queue, out)
+    }
+  }
+
   private def mergeSinglePartitionChunks (fileName: String)(files: Vector[String]): Unit = {
     val rafs = files.map(path => new RandomAccessFile(path, "r"))
     val cins = rafs.map(_.getChannel)
     val out = new FileOutputStream(fileName)
-
     val queue = mutable.PriorityQueue[(Entry, FileChannel)]()(queueOrdering.reverse)
-
-    def addNewEntryToQueue(cin: FileChannel): Unit = {
-      val entry = fileHandler.readEntryFromChannel(cin)
-      queue.enqueue((entry, cin))
-    }
-
-    @tailrec
-    def mergeLoop(): Unit = {
-      if (queue.nonEmpty) {
-        try {
-          val (entry, cin) = queue.dequeue()
-          out.write(entry)
-          addNewEntryToQueue(cin)
-        } catch {
-          case e: BufferUnderflowException =>
-          case e: Exception => e.printStackTrace()
-        }
-
-        mergeLoop()
-      }
-    }
 
     logger.info(s"Merge to make $fileName")
 
-
-    cins foreach { cin =>
-      try { addNewEntryToQueue(cin) }
-      catch {
-        case e: BufferUnderflowException =>
-        case e: Exception => e.printStackTrace()
-      }
-    }
-    mergeLoop()
+    cins foreach tryAddNewEntryToQueue(queue)
+    mergeLoop(queue, out)
 
     rafs foreach {_.close()}
     cins foreach {_.close()}
