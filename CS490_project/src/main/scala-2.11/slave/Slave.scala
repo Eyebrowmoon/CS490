@@ -6,7 +6,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import com.typesafe.scalalogging.Logger
 import common.{DoneMessage, SampleMessage, SlaveInfoMessage, _}
 import io.netty.bootstrap.Bootstrap
-import io.netty.channel.{Channel}
+import io.netty.channel.Channel
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.nio.NioSocketChannel
 
@@ -18,7 +18,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
 
   val logger = Logger("Slave")
 
-  private val fileHandler = new FileHandler(inputDirs, outputDir)
+  private val inputFilePaths: Vector[String] = inputDirs.toVector.flatMap(FileHandler.getPathsFromDir)
   private val fileRequestServer = new FileRequestServer()
 
   private val messageQueue: LinkedBlockingQueue[Message] = new LinkedBlockingQueue[Message]()
@@ -38,11 +38,9 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
         .group(group)
         .channel(classOf[NioSocketChannel])
         .handler(new SlaveChannelInitializer(this))
-
       val channel = connectBootstrapToMaster(bootstrap)
 
       messageHandleLoop(channel)
-
     } finally {
       group.shutdownGracefully()
     }
@@ -78,9 +76,9 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   }
 
   def sampleMessage(): SampleMessage = {
-    val sampleString = fileHandler.sampleFromInput()
+    val (sampleString, dataSize) = Sampler.sampleFromInput(inputFilePaths)
 
-    new SampleMessage(InetAddress.getLocalHost.getHostAddress, fileHandler.dataSize, sampleString)
+    new SampleMessage(InetAddress.getLocalHost.getHostAddress, dataSize, sampleString)
   }
 
   def addMessage(message: Message) = messageQueue add message
@@ -119,7 +117,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def startPartitioner(pivots: Array[Key]): Unit = {
     logger.info("Start Partitioner")
 
-    val partitionFuture = new Partitioner(fileHandler, pivots, slaveIP.indexOf(myIP)).partitionFiles()
+    val partitionFuture = new Partitioner(inputFilePaths, outputDir, pivots, slaveIP.indexOf(myIP)).partitionFiles()
     partitionFuture onSuccess {case partitions => this.addMessage(PartitionDoneMessage(partitions))}
   }
 

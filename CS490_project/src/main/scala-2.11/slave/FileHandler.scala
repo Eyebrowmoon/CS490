@@ -4,109 +4,199 @@ import java.io._
 import java.nio.ByteBuffer
 import java.nio.channels.FileChannel
 
+import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
 import common._
+import io.netty.channel.ChannelHandlerContext
 
-class FileHandler(inputDirs: Array[String], val outputDir: String) {
+class RandomAccessFileHandler(path: String, flag: String) {
+
+  val logger = Logger(s"RandomAccessFileReader - $path")
+
+  protected var rafOption: Option[RandomAccessFile] = None
+  protected var channelOption: Option[FileChannel] = None
+
+  def init(): (RandomAccessFile, FileChannel) = {
+    val raf = new RandomAccessFile(path, flag)
+    rafOption = Some(raf)
+
+    val cin = raf.getChannel
+    channelOption = Some(cin)
+
+    (raf, cin)
+  }
+
+  def close(): Unit = {
+    rafOption foreach { _.close() }
+    channelOption foreach { _.close() }
+  }
+
+  /*
+   * execute method provides safe way to handle the Random Access File
+   * */
+  def execute[T](handler: (RandomAccessFile, FileChannel) => T): T = {
+    try {
+      val (raf, channel) = init()
+      handler(raf, channel)
+    } finally {
+      close()
+    }
+  }
+
+  def executeWithManualClose[T](handler: (RandomAccessFile, FileChannel) => T): T = {
+    try {
+      val (raf, channel) = init()
+      handler(raf, channel)
+    }
+  }
+}
+
+class MultipleRandomAccessFileHandler(paths: Vector[String], flag: String) {
+
+  val logger = Logger(s"MultipleRandomAccessFileReader")
+
+  private val openedRafs: mutable.Set[RandomAccessFile] = mutable.Set.empty[RandomAccessFile]
+  private val openedChannels: mutable.Set[FileChannel] = mutable.Set.empty[FileChannel]
+
+  private def openRaf(path: String): RandomAccessFile = {
+    val raf = new RandomAccessFile(path, flag)
+    openedRafs.add(raf)
+    raf
+  }
+
+  private def getChannel(raf: RandomAccessFile): FileChannel = {
+    val channel = raf.getChannel
+    openedChannels.add(channel)
+    channel
+  }
+
+  private def init(): (Vector[RandomAccessFile], Vector[FileChannel]) = {
+    val rafs = paths.map(openRaf)
+    val channels = rafs.map(getChannel)
+
+    (rafs, channels)
+  }
+
+  private def close(): Unit = {
+    openedRafs foreach { _.close() }
+    openedChannels foreach { _.close() }
+  }
+
+  /*
+   * execute method provides safe way to handle the Random Access Files
+   * But, if you want to keep the file open, you must call init and close methods explicitly.
+   * */
+  def execute[T](handler: (Vector[RandomAccessFile], Vector[FileChannel]) => T): T = {
+    try {
+      val (rafs, channels) = init()
+      handler(rafs, channels)
+    } finally {
+      close()
+    }
+  }
+}
+
+class EntryReader(raf: RandomAccessFile, cin: FileChannel) {
+
+  val logger = Logger(s"EntryReader")
+  val entryBuffer = ByteBuffer.allocateDirect(entryLength)
+
+  private def readToEntryBuffer(): Int = {
+    entryBuffer.clear()
+    val readLength = cin.read(entryBuffer)
+    entryBuffer.flip()
+
+    readLength
+  }
+
+  def readEntry(): Entry = {
+    val readLength = readToEntryBuffer()
+    if (readLength == entryLength) {
+      val entry = new Array[Byte](entryLength)
+      entryBuffer.get(entry)
+      entry
+    } else { throw new IOException() }
+  }
+
+  def readEntryFrom(pos: Long): Entry = {
+    raf.seek(pos)
+    readEntry()
+  }
+
+  def readEntriesFrom(pos: Long, numEntries: Int): Vector[Entry] = {
+    raf.seek(pos)
+    (0 until numEntries) map { _ => readEntry() } toVector
+  }
+}
+
+object FileHandler {
 
   val logger = Logger("FileHandler")
 
-  val inputFileList: List[File] = inputDirs.toList.flatMap(getListOfFiles)
-  val dataSize: Long = inputFileList.map{ _.length }.sum
-
-  private val entryBuffer: ByteBuffer = ByteBuffer.allocateDirect(entryLength)
-
-  private def getListOfFiles(dirName: String): List[File] = {
+  def getPathsFromDir(dirName: String): Vector[String] = {
     val dir = new File(dirName)
-    if (dir.exists && dir.isDirectory) dir.listFiles.filter(_.isFile).toList
-    else List[File]()
+    if (dir.exists && dir.isDirectory) dir.listFiles.filter(_.isFile).map{_.getCanonicalPath}.toVector
+    else Vector[String]()
   }
 
-  private def readToEntryBuffer(cin: FileChannel): Unit = {
-    entryBuffer.clear()
-    cin read entryBuffer
-    entryBuffer.flip()
+  def getFileSize(path: String): Long = {
+    val file = new File(path)
+    if (file.exists) file.length
+    else 0
   }
 
-  private def readKeysFromFile(raf: RandomAccessFile, cin: FileChannel, numKeys: Int): String = {
-    var result = ""
+  def readFile(path: String)(handler: BufferedInputStream => Unit): Unit = {
+    var fisOption: Option[FileInputStream] = None
+    var inOption: Option[BufferedInputStream] = None
 
-    (0 until numKeys) foreach { i =>
-      val keyArray: Array[Byte] = new Array[Byte](keyLength)
+    try {
+      val fis = new FileInputStream(path)
+      val in = new BufferedInputStream(fis)
 
-      raf.seek(i * entryLength)
-      readToEntryBuffer(cin)
+      fisOption = Some(fis)
+      inOption = Some(in)
 
-      entryBuffer.get(keyArray)
-      result += keyArray.map{_.toChar}.mkString
+      handler(in)
+    } catch {
+      case e: IOException => e.printStackTrace()
+    } finally {
+      fisOption.foreach{ _.close() }
+      inOption.foreach{ _.close() }
     }
-
-    result
   }
 
-  // Assume uniform distribution
-  private def sampleSingleFile(sampleRatio: Double)(file: File): String = {
-    val numKeys: Int = (sampleRatio * file.length).toInt / 10
+  def writeFile(path: String)(handler: BufferedOutputStream => Unit): Unit = {
+    var fosOption: Option[FileOutputStream] = None
+    var outOption: Option[BufferedOutputStream] = None
 
-    logger.info(s"Sample ${file.getCanonicalPath}")
+    try {
+      val fos = new FileOutputStream(path)
+      val out = new BufferedOutputStream(fos)
 
-    val raf = new RandomAccessFile(file.getCanonicalPath, "r")
-    val cin = raf.getChannel
+      fosOption = Some(fos)
+      outOption = Some(out)
 
-    val result = readKeysFromFile(raf, cin, numKeys)
-
-    raf.close()
-    cin.close()
-
-    result
-  }
-
-  def sampleFromInput(): String = {
-    logger.info("Sampling start")
-
-    val sampleSize: Int = List[Long](MAX_SAMPLE_SIZE, dataSize).min.toInt
-    val sampleRatio: Double = sampleSize * 1.0 / dataSize
-    val sampleStrings: List[String] = inputFileList map sampleSingleFile(sampleRatio)
-
-    logger.info("Sampling end")
-
-    sampleStrings.mkString
-  }
-
-  def readEntryFromChannel(cin: FileChannel): Entry = {
-    val entryArray: Entry = new Array[Byte](entryLength)
-
-    readToEntryBuffer(cin)
-    entryBuffer.get(entryArray)
-
-    entryArray
-  }
-
-  def readEntries(file: File, startPos: Long, numEntries: Int): Array[Entry] = {
-    val arraySize = List(numEntries, ((file.length - startPos) / entryLength).toInt).min
-    val result: Array[Entry] = new Array[Entry](arraySize)
-
-    logger.info(s"Read $arraySize entries from ${file.getCanonicalPath}-$startPos")
-
-    val raf = new RandomAccessFile(file.getCanonicalPath, "r")
-    val cin = raf.getChannel
-
-    raf.seek(startPos)
-    result.indices foreach { i => result(i) = readEntryFromChannel(cin) }
-
-    raf.close()
-    cin.close()
-
-    result
-  }
-
-  def saveEntriesToFile(entries: Array[Entry], fileName: String): Unit = {
-    val out = new FileOutputStream(fileName)
-
-    entries foreach { entry =>
-      out.write(entry)
+      handler(out)
+    } catch {
+      case e: IOException => e.printStackTrace()
+    } finally {
+      fosOption.foreach{ _.close() }
+      outOption.foreach{ _.close() }
     }
+  }
 
-    out.close()
+  def readToBuffer(cin: FileChannel, buffer: ByteBuffer): Int = {
+    buffer.clear()
+    val readLength = cin.read(buffer)
+    buffer.flip()
+
+    readLength
+  }
+
+  def readByteArray(cin: FileChannel, buffer: ByteBuffer): Array[Byte] = {
+    val readLength = readToBuffer(cin, buffer)
+    val entry = new Array[Byte](readLength)
+    buffer.get(entry)
+    entry
   }
 }

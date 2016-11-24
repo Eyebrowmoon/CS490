@@ -1,6 +1,6 @@
 package slave
 
-import java.io.{File, FileOutputStream}
+import java.io.{BufferedOutputStream}
 
 import com.typesafe.scalalogging.Logger
 import io.netty.bootstrap.Bootstrap
@@ -9,36 +9,35 @@ import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.channel.socket.SocketChannel
 import io.netty.channel.socket.nio.NioSocketChannel
 import io.netty.handler.codec.bytes.ByteArrayDecoder
-import io.netty.handler.codec.string.{StringEncoder}
+import io.netty.handler.codec.string.StringEncoder
 import io.netty.util.CharsetUtil
 
 class FileRequestManager(ownerIP: String, path: String) {
 
   val logger = Logger(s"FileRequestManager(${path})")
-
-  val out = new FileOutputStream(new File(s"${path}"))
   val group = new NioEventLoopGroup()
 
   def run(): Unit = {
     logger.info("Start running")
     try {
-      val bootstrap = new Bootstrap()
-        .group(group)
-        .channel(classOf[NioSocketChannel])
-        .handler(new FileRequestHandlerInitializer(path, out))
+      FileHandler.writeFile(path) { out =>
+        val bootstrap = new Bootstrap()
+          .group(group)
+          .channel(classOf[NioSocketChannel])
+          .handler(new FileRequestHandlerInitializer(path, out))
 
-      val channelFuture = bootstrap.connect(ownerIP, slavePort).sync()
+        val channelFuture = bootstrap.connect(ownerIP, slavePort).sync()
 
-      channelFuture.channel().closeFuture().sync()
+        channelFuture.channel().closeFuture().sync()
+      }
     } finally {
       group.shutdownGracefully()
-      out.close()
     }
     logger.info("Terminate")
   }
 }
 
-class FileRequestHandlerInitializer(path: String, out: FileOutputStream) extends ChannelInitializer[SocketChannel] {
+class FileRequestHandlerInitializer(path: String, out: BufferedOutputStream) extends ChannelInitializer[SocketChannel] {
   override def initChannel(channel: SocketChannel): Unit = {
     val pipeline = channel.pipeline
 
@@ -48,7 +47,7 @@ class FileRequestHandlerInitializer(path: String, out: FileOutputStream) extends
   }
 }
 
-class FileRequestHandler(path: String, out: FileOutputStream) extends SimpleChannelInboundHandler[Array[Byte]] {
+class FileRequestHandler(path: String, out: BufferedOutputStream) extends SimpleChannelInboundHandler[Array[Byte]] {
 
   val logger = Logger(s"FileRequestHandler(${path})")
 

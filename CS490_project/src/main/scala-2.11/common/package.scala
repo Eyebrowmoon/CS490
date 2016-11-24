@@ -45,7 +45,7 @@ package object common {
 
   def keyToString(key: Key): String = key.map(_.toChar).mkString
 
-  /* Implicit orderings */
+  /* Orderings */
 
   @tailrec
   private def compareKey(x: Array[Byte], y: Array[Byte], i: Int): Int = {

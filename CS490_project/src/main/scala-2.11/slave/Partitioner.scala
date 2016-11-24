@@ -15,7 +15,7 @@ import scala.util.Sorting
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
-class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
+class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Array[Key], slaveNum: Int) {
 
   val logger = Logger("Partitioner")
 
@@ -25,8 +25,8 @@ class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
 
   val pivotEntries =  pivotsWithBoundary map newEntryFromKey
 
-  val queueOrdering = new Ordering[(Entry, FileChannel)] {
-    def compare(x: (Entry, FileChannel), y: (Entry, FileChannel)): Int = {
+  val queueOrdering = new Ordering[(Entry, EntryReader)] {
+    def compare(x: (Entry, EntryReader), y: (Entry, EntryReader)): Int = {
       entryOrdering.compare(x._1, y._1)
     }
   }
@@ -43,73 +43,55 @@ class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
     } map { idx => if (idx < 0) -(idx + 1) else idx }
 
     (0 until numPartition) map { partitionNum: Int => {
-      val fileName = s"${fileHandler.outputDir}/${chunkFileName}_${partitionNum}"
+      val fileName = s"${outputDir}/${chunkFileName}_${partitionNum}"
       val entries = chunkEntries.slice(pivotIndex(partitionNum), pivotIndex(partitionNum + 1))
 
-      fileHandler.saveEntriesToFile(entries, fileName)
+      FileHandler.writeFile(fileName) { entries foreach _.write }
 
       fileName
     }} toVector
   }
 
-  private def partitionSingleChunk(file: File, fileIndex: Int)(chunkIndex: Int): Vector[String] = {
-    logger.info(s"Partition ${file.getCanonicalPath} - chunk${chunkIndex}")
-
-    val chunkEntries = fileHandler
-      .readEntries(file, chunkIndex.toLong * numEntriesPerChunk * entryLength, numEntriesPerChunk)
-
-    Sorting.quickSort(chunkEntries)(entryOrdering)
-
-    savePartitions(chunkEntries, s"chunk_${fileIndex}_${chunkIndex}")
+  def addNewEntryToQueue(queue: mutable.PriorityQueue[(Entry, EntryReader)])(entryReader: EntryReader): Unit = {
+    val entry = entryReader.readEntry()
+    queue.enqueue((entry, entryReader))
   }
 
-  def addNewEntryToQueue(queue: mutable.PriorityQueue[(Entry, FileChannel)])(cin: FileChannel): Unit = {
-    val entry = fileHandler.readEntryFromChannel(cin)
-    queue.enqueue((entry, cin))
-  }
-
-  def tryAddNewEntryToQueue(queue: mutable.PriorityQueue[(Entry, FileChannel)])(cin: FileChannel): Unit = {
-    try { addNewEntryToQueue(queue)(cin) }
+  def tryAddNewEntryToQueue(queue: mutable.PriorityQueue[(Entry, EntryReader)])(entryReader: EntryReader): Unit = {
+    try { addNewEntryToQueue(queue)(entryReader) }
     catch {
-      case e: BufferUnderflowException =>
+      case e: IOException =>
       case e: Exception => e.printStackTrace()
     }
   }
 
   @tailrec
-  private def mergeLoop(queue: mutable.PriorityQueue[(Entry, FileChannel)], out: FileOutputStream): Unit = {
+  private def mergeLoop(queue: mutable.PriorityQueue[(Entry, EntryReader)], out: BufferedOutputStream): Unit = {
     if (queue.nonEmpty) {
-      try {
-        val (entry, cin) = queue.dequeue()
-        out.write(entry)
-        addNewEntryToQueue(queue)(cin)
-      } catch {
-        case e: BufferUnderflowException =>
-        case e: Exception => e.printStackTrace()
-      }
+      val (entry, entryReader) = queue.dequeue()
+
+      out.write(entry)
+      tryAddNewEntryToQueue(queue)(entryReader)
+
       mergeLoop(queue, out)
     }
   }
 
   private def mergeSinglePartitionChunks (fileName: String)(files: Vector[String]): Unit = {
-    val rafs = files.map(path => new RandomAccessFile(path, "r"))
-    val cins = rafs.map(_.getChannel)
-    val out = new FileOutputStream(fileName)
-    val queue = mutable.PriorityQueue[(Entry, FileChannel)]()(queueOrdering.reverse)
-
     logger.info(s"Merge to make $fileName")
 
-    cins foreach tryAddNewEntryToQueue(queue)
-    mergeLoop(queue, out)
+    val queue = mutable.PriorityQueue[(Entry, EntryReader)]()(queueOrdering.reverse)
+    new MultipleRandomAccessFileHandler(files, "r").execute { (rafs, cins) =>
+      val entryReaders = rafs.indices map { idx => new EntryReader(rafs(idx), cins(idx))}
 
-    rafs foreach {_.close()}
-    cins foreach {_.close()}
-    out.close()
+      entryReaders foreach tryAddNewEntryToQueue(queue)
+      FileHandler.writeFile(fileName) { out => mergeLoop(queue, out) }
+    }
   }
 
   private def mergeChunksGroupedByPartition(chunks: Vector[Vector[String]], fileIndex: Int): Vector[String] = {
     chunks.indices map { partitionNum =>
-      val fileName = s"${fileHandler.outputDir}/partition_${fileIndex}_${partitionNum}_${slaveNum}"
+      val fileName = s"${outputDir}/partition_${fileIndex}_${partitionNum}_${slaveNum}"
       val files = chunks(partitionNum)
 
       mergeSinglePartitionChunks(fileName)(chunks(partitionNum))
@@ -119,13 +101,26 @@ class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
     } toVector
   }
 
-  private def partitionSingleFile(file: File): Vector[String] = {
-    val numChunk: Int = Math.ceil(file.length.toDouble / numEntriesPerChunk / entryLength).toInt
-    val fileIndex = fileHandler.inputFileList indexOf file
+  private def partitionSingleChunk(path: String, fileIndex: Int)(chunkIndex: Int): Vector[String] = {
+    logger.info(s"Partition $path - chunk$chunkIndex")
 
-    logger.info(s"Partition ${file.getCanonicalPath}")
+    val chunkEntries = new RandomAccessFileHandler(path, "r").execute { case (raf, cin) =>
+      val entryReader = new EntryReader(raf, cin)
+      entryReader.readEntriesFrom(chunkIndex.toLong * numEntriesPerChunk * entryLength, numEntriesPerChunk)
+    } toArray
 
-    val chunkedFiles = (0 until numChunk) map partitionSingleChunk(file, fileIndex) toVector
+    Sorting.quickSort(chunkEntries)(entryOrdering)
+    savePartitions(chunkEntries, s"chunk_${fileIndex}_${chunkIndex}")
+  }
+
+  private def partitionSingleFile(path: String): Vector[String] = {
+    logger.info(s"Partition $path")
+
+    val fileSize = FileHandler.getFileSize(path)
+    val numChunk: Int = Math.ceil(fileSize / numEntriesPerChunk / entryLength).toInt
+    val fileIndex = inputFilePaths indexOf path
+
+    val chunkedFiles = (0 until numChunk) map partitionSingleChunk(path, fileIndex) toVector
     val chunksGroupedByPartition: Vector[Vector[String]] = chunkedFiles.transpose
 
     mergeChunksGroupedByPartition(chunksGroupedByPartition, fileIndex)
@@ -133,7 +128,7 @@ class Partitioner(fileHandler: FileHandler, pivots: Array[Key], slaveNum: Int) {
 
   def partitionFiles(): Future[Vector[Vector[String]]] = Future {
     logger.info("Partition start")
-    val partitionedFiles = fileHandler.inputFileList.map(partitionSingleFile).toVector
+    val partitionedFiles = inputFilePaths.map(partitionSingleFile)
     logger.info("Partition end")
 
     partitionedFiles.transpose

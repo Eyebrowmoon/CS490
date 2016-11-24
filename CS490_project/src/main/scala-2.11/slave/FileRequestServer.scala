@@ -1,7 +1,7 @@
 package slave
 
-import java.io.{File, FileInputStream, RandomAccessFile}
-import java.nio.{BufferUnderflowException, ByteBuffer}
+import java.io.{File}
+import java.nio.{ByteBuffer}
 import java.nio.channels.FileChannel
 
 import com.typesafe.scalalogging.Logger
@@ -39,10 +39,7 @@ class FileRequestServer extends Thread {
     logger.info("Terminate")
   }
 
-  def terminate(): Unit = channelOption match {
-    case Some(channel) => channel.close()
-    case None =>
-  }
+  def terminate(): Unit = channelOption foreach { _.close() }
 }
 
 class FileRequestServerInitializer extends ChannelInitializer[SocketChannel] {
@@ -57,6 +54,8 @@ class FileRequestServerInitializer extends ChannelInitializer[SocketChannel] {
 
 class FileRequestServerHandler extends SimpleChannelInboundHandler[String] {
 
+  import FileHandler._
+
   val logger = Logger("FileRequestServerHandler")
   val buffer = ByteBuffer.allocateDirect(4096)
 
@@ -64,47 +63,31 @@ class FileRequestServerHandler extends SimpleChannelInboundHandler[String] {
     logger.info("Channel active")
   }
 
-  def readEntryFromChannel(cin: FileChannel): Array[Byte] = {
-    val size = readToBuffer(cin)
-    if (size > 0) {
-      val array: Array[Byte] = new Array[Byte](size)
-      buffer.get(array)
-      array
-    } else new Array[Byte](0)
-  }
-
-  def readToBuffer(cin: FileChannel): Int = {
-    buffer.clear()
-    val result = cin.read(buffer)
-    buffer.flip()
-
-    result
-  }
-
   override def channelRead0(ctx: ChannelHandlerContext, msg: String): Unit = {
     logger.info(s"File Request - $msg")
+    val rafHandler = new RandomAccessFileHandler(msg, "r")
 
-    val file = new File(msg)
-    val raf = new RandomAccessFile(file, "r")
-    val cin = raf.getChannel
+    def tryWriteWithListenerOrElse(cin: FileChannel, listener: ChannelFutureListener)(elseBlock: => Unit): Unit = {
+      val content = readByteArray(cin, buffer)
+      if (content.length > 0) ctx.writeAndFlush(content).addListener(listener)
+      else elseBlock
+    }
 
-    val content = readEntryFromChannel(cin)
-    val writeFuture = ctx.writeAndFlush(content)
+    def clear(): Unit = {
+      new File(msg).delete()
+      rafHandler.close()
+      ctx.close()
+    }
 
-    writeFuture.addListener(new ChannelFutureListener {
-      override def operationComplete(future: ChannelFuture): Unit = {
-        val content = readEntryFromChannel(cin)
-        if (content.length > 0) {
-          val future = ctx.writeAndFlush(content)
-          future.addListener(this)
-        } else {
-          raf.close()
-          cin.close()
-          file.delete()
-          ctx.close()
+    rafHandler.execute { case (raf, cin) =>
+      val listener = new ChannelFutureListener {
+        override def operationComplete(future: ChannelFuture): Unit = {
+          tryWriteWithListenerOrElse(cin, this)(clear)
         }
       }
-    })
+
+      tryWriteWithListenerOrElse(cin, listener)()
+    }
   }
 
   override def exceptionCaught(ctx: ChannelHandlerContext, cause: Throwable): Unit = {
