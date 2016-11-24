@@ -79,7 +79,7 @@ class FileRequestServerHandler extends SimpleChannelInboundHandler[String] {
       ctx.close()
     }
 
-    rafHandler.execute { case (raf, cin) =>
+    rafHandler.executeWithManualClose { case (raf, cin) =>
       val listener = new ChannelFutureListener {
         override def operationComplete(future: ChannelFuture): Unit = {
           tryWriteWithListenerOrElse(cin, this)(clear)

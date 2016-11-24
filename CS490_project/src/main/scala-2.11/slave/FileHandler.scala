@@ -103,7 +103,8 @@ class EntryReader(raf: RandomAccessFile, cin: FileChannel) {
     val readLength = cin.read(entryBuffer)
     entryBuffer.flip()
 
-    readLength
+    if (readLength < 0) 0
+    else readLength
   }
 
   def readEntry(): Entry = {
@@ -183,7 +184,8 @@ object FileHandler {
     val readLength = cin.read(buffer)
     buffer.flip()
 
-    readLength
+    if (readLength < 0) 0
+    else readLength
   }
 
   def readByteArray(cin: FileChannel, buffer: ByteBuffer): Array[Byte] = {
