@@ -43,10 +43,8 @@ class RandomAccessFileHandler(path: String, flag: String) {
   }
 
   def executeWithManualClose[T](handler: (RandomAccessFile, FileChannel) => T): T = {
-    try {
-      val (raf, channel) = init()
-      handler(raf, channel)
-    }
+    val (raf, channel) = init()
+    handler(raf, channel)
   }
 }
 
@@ -123,8 +121,14 @@ class EntryReader(raf: RandomAccessFile, cin: FileChannel) {
   }
 
   def readEntriesFrom(pos: Long, numEntries: Int): Vector[Entry] = {
-    raf.seek(pos)
-    (0 until numEntries) map { _ => readEntry() } toVector
+    val remainedEntries = (raf.length - pos) / entryLength
+    if (remainedEntries < 0) Vector.empty[Entry]
+    else {
+      val numEntriesToRead = List(numEntries, remainedEntries.toInt).min
+
+      raf.seek(pos)
+      (0 until numEntriesToRead) map { _ => readEntry() } toVector
+    }
   }
 }
 

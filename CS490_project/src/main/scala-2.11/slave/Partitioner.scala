@@ -17,6 +17,8 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Array[Key], slaveNum: Int) {
 
+  println(inputFilePaths.mkString)
+
   val logger = Logger("Partitioner")
 
   val numPartition: Int = pivots.length + 1
@@ -117,7 +119,7 @@ class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Arr
     logger.info(s"Partition $path")
 
     val fileSize = FileHandler.getFileSize(path)
-    val numChunk: Int = Math.ceil(fileSize / numEntriesPerChunk / entryLength).toInt
+    val numChunk: Int = Math.ceil(fileSize * 1.0 / numEntriesPerChunk / entryLength).toInt
     val fileIndex = inputFilePaths indexOf path
 
     val chunkedFiles = (0 until numChunk) map partitionSingleChunk(path, fileIndex) toVector

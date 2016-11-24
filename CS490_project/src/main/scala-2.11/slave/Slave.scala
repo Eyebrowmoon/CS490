@@ -118,7 +118,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     logger.info("Start Partitioner")
 
     val partitionFuture = new Partitioner(inputFilePaths, outputDir, pivots, slaveIP.indexOf(myIP)).partitionFiles()
-    partitionFuture onSuccess {case partitions => this.addMessage(PartitionDoneMessage(partitions))}
+    partitionFuture onSuccess { case partitions => this.addMessage(PartitionDoneMessage(partitions)) }
   }
 
   private def handleSlaveInfoMessage(slaveIP: Array[String], pivotString: String, channel: Channel): Unit = {
@@ -166,7 +166,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
     logger.info(s"Request files to $ownerIP")
 
-    val filesFlatten = myPartitionIndices.map{files(_)}.flatten
+    val filesFlatten = myPartitionIndices.map{ files(_) }.flatten
     val requestFuture = Future { filesFlatten foreach requestSingleFile(ownerIP) }
     requestFuture onSuccess { case () => this.addMessage(FileRequestDoneMessage(ownerIP)) }
   }
