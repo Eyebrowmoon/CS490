@@ -1,6 +1,6 @@
 
 package object slave {
-  val MAX_SAMPLE_SIZE = 100000 // 1MB of keys
+  val MAX_SAMPLE_SIZE = 1000000 // about 1MB of keys
 
   val slavePort = 24925
 

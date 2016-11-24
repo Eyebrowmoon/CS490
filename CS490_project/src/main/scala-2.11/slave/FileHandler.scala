@@ -7,7 +7,6 @@ import java.nio.channels.FileChannel
 import scala.collection.mutable
 import com.typesafe.scalalogging.Logger
 import common._
-import io.netty.channel.ChannelHandlerContext
 
 class RandomAccessFileHandler(path: String, flag: String) {
 
