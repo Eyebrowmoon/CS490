@@ -149,42 +149,32 @@ object FileHandler {
   }
 
   def readFile(path: String)(handler: BufferedInputStream => Unit): Unit = {
-    var fisOption: Option[FileInputStream] = None
     var inOption: Option[BufferedInputStream] = None
 
     try {
-      val fis = new FileInputStream(path)
-      val in = new BufferedInputStream(fis)
-
-      fisOption = Some(fis)
+      val in = new BufferedInputStream(new FileInputStream(path))
       inOption = Some(in)
 
       handler(in)
     } catch {
       case e: IOException => e.printStackTrace()
     } finally {
-      fisOption.foreach{ _.close() }
       inOption.foreach{ _.close() }
     }
   }
 
   def writeFile(path: String)(handler: BufferedOutputStream => Unit): Unit = {
-    var fosOption: Option[FileOutputStream] = None
     var outOption: Option[BufferedOutputStream] = None
 
     try {
-      val fos = new FileOutputStream(path)
-      val out = new BufferedOutputStream(fos)
-
-      fosOption = Some(fos)
+      val out = new BufferedOutputStream(new FileOutputStream(path))
       outOption = Some(out)
 
       handler(out)
     } catch {
       case e: IOException => e.printStackTrace()
     } finally {
-      fosOption.foreach{ _.close() }
-      outOption.foreach{ _.close() }
+      outOption foreach { _.close() }
     }
   }
 

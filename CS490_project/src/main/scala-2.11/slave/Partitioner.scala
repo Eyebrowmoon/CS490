@@ -17,8 +17,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 
 class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Array[Key], slaveNum: Int) {
 
-  println(inputFilePaths.mkString)
-
   val logger = Logger("Partitioner")
 
   val numPartition: Int = pivots.length + 1
@@ -97,7 +95,7 @@ class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Arr
       val files = chunks(partitionNum)
 
       mergeSinglePartitionChunks(fileName)(chunks(partitionNum))
-      files foreach {file => new File(file).delete()}
+      files foreach { file => new File(file).delete() }
 
       fileName
     } toVector
