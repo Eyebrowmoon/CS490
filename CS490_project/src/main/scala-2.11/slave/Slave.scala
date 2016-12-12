@@ -26,6 +26,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private val myIP = InetAddress.getLocalHost.getHostAddress
 
   private val requestNotFinished: mutable.Set[String] = mutable.Set.empty[String]
+  private val partitionFiles: mutable.Map[Int, Vector[String]] = mutable.Map.empty[Int, Vector[String]]
 
   private var state: SlaveState = SlaveConnectState
   private var slaveIP: Array[String] = _
@@ -106,6 +107,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     case PartitionDoneMessage(partitions) => handlePartitionDoneMessage(partitions, channel)
     case FileInfoMessage(files, ownerIP) => handleFileInfoMessage(files, ownerIP, channel)
     case FileRequestDoneMessage(ownerIP) => handleFileRequestDoneMessage(ownerIP, channel)
+    case MergeDoneMessage => handleMergeDoneMessage(channel)
     case _ =>
   }
 
@@ -147,14 +149,23 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def handleFileInfoMessage(files: Vector[Vector[String]], ownerIP: String, channel: Channel): Unit = {
     logger.info("Received FileInfoMessage")
 
-    if (ownerIP != myIP) requestFiles(files, ownerIP)
+    val recvedPartitionFiles = myPartitionIndices.map(files)
+    myPartitionIndices foreach { idx =>
+      partitionFiles(idx) ++= recvedPartitionFiles(idx)
+    }
+
+    if (ownerIP != myIP) requestFiles(recvedPartitionFiles.toVector, ownerIP)
   }
 
   private def handleFileRequestDoneMessage(ownerIP: String, channel: Channel): Unit = {
     requestNotFinished.remove(ownerIP)
 
     if (partitionFinished && requestNotFinished.isEmpty)
-      changeToSuccessState(channel)
+      startMerger()
+  }
+
+  private def handleMergeDoneMessage(channel: Channel): Unit = {
+    changeToSuccessState(channel)
   }
 
   private def handleTerminateMessage(): Unit = {
@@ -163,10 +174,18 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     terminate()
   }
 
+  private def startMerger(): Unit = {
+    val mergeFuture = Future {
+      partitionFiles foreach { case (idx, files) => Merger(files, s"partition.$idx") }
+    }
+
+    mergeFuture onSuccess { case _ => this.addMessage(MergeDoneMessage) }
+  }
+
   private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
     logger.info(s"Request files to $ownerIP")
 
-    val filesFlatten = myPartitionIndices.map{ files(_) }.flatten
+    val filesFlatten = files.flatten
     val requestFuture = Future { filesFlatten foreach requestSingleFile(ownerIP) }
     requestFuture onSuccess { case () => this.addMessage(FileRequestDoneMessage(ownerIP)) }
   }

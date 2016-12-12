@@ -4,7 +4,7 @@
 		module="cs490_project$sources_2.11"
 		revision="1.0"
 		status="integration"
-		publication="20161124150041"
+		publication="20161212102243"
 	/>
 	<configurations>
 		<conf name="default" visibility="public" description=""/>
