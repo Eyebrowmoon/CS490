@@ -1,7 +1,7 @@
 package master
 
 import java.net.InetAddress
-import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.{CountDownLatch, LinkedBlockingQueue}
 
 import common._
 import io.netty.bootstrap.ServerBootstrap
@@ -138,7 +138,7 @@ class Master(numSlave: Int) {
   private def handleFileInfoMessage(fileInfoMessage: FileInfoMessage): Unit = {
     logger.info("Received FileInfoMessage")
 
-    slaves.writeAndFlush(fileInfoMessage)
+    slaves.writeAndFlush(fileInfoMessage).sync()
   }
 
   private def handleDoneMessage(): Unit = {
