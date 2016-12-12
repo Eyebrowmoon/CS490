@@ -13,7 +13,7 @@ class Merger(files: Vector[String], fileName: String) {
 
   import Merger.queueOrdering
 
-  val logger = Logger(s"Merger - $fileName")
+  val logger = Logger(s"Merger")
 
   val queue = mutable.PriorityQueue[(Entry, EntryReader)]()(queueOrdering.reverse)
 

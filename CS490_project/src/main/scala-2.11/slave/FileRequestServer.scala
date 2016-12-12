@@ -59,12 +59,8 @@ class FileRequestServerHandler extends SimpleChannelInboundHandler[String] {
   val logger = Logger("FileRequestServerHandler")
   val buffer = ByteBuffer.allocateDirect(4096)
 
-  override def channelActive(ctx: ChannelHandlerContext): Unit = {
-    logger.info("Channel active")
-  }
-
   override def channelRead0(ctx: ChannelHandlerContext, msg: String): Unit = {
-    logger.info(s"File Request - $msg")
+    logger.debug(s"File Request - $msg")
     val rafHandler = new RandomAccessFileHandler(msg, "r")
 
     def tryWriteWithListenerOrElse(cin: FileChannel, listener: ChannelFutureListener)(elseBlock: => Unit): Unit = {

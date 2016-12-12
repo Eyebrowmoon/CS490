@@ -18,7 +18,7 @@ class FileRequestManager(ownerIP: String, path: String) {
   val group = new NioEventLoopGroup()
 
   def run(): Unit = {
-    logger.info("Start running")
+    logger.debug("Start running")
     try {
       FileHandler.writeFile(path) { out =>
         val bootstrap = new Bootstrap()
@@ -33,7 +33,7 @@ class FileRequestManager(ownerIP: String, path: String) {
     } finally {
       group.shutdownGracefully()
     }
-    logger.info("Terminate")
+    logger.debug("Terminate")
   }
 }
 
@@ -52,7 +52,7 @@ class FileRequestHandler(path: String, out: BufferedOutputStream) extends Simple
   val logger = Logger(s"FileRequestHandler(${path})")
 
   override def channelActive(ctx: ChannelHandlerContext): Unit = {
-    logger.info("Channel active")
+    logger.debug("Channel active")
 
     ctx.writeAndFlush(path)
   }
