@@ -157,8 +157,8 @@ class Master(numSlave: Int) {
       pivot map {_.toChar} mkString
     } mkString
 
-    slaves.write(SlaveInfoMessage(slaveAddressList.toArray, pivotString))
-    slaves.flush()
+    slaves.writeAndFlush(SlaveInfoMessage(slaveAddressList.toArray, stringToHex(pivotString))).sync()
+    Thread.sleep(numSlave * 100)
   }
 
   private def startPivotCalculator(): Unit = {

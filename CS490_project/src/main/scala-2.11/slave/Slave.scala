@@ -126,7 +126,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def handleSlaveInfoMessage(slaveIP: Array[String], pivotString: String, channel: Channel): Unit = {
     logger.info("Received SlaveInfoMessage")
 
-    val pivots = stringToKeyArray(pivotString)
+    val pivots = stringToKeyArray(hexToAscii(pivotString))
     this.slaveIP = slaveIP
 
     slaveIP foreach { requestNotFinished.add(_) }
