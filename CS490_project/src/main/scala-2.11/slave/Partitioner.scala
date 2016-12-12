@@ -76,10 +76,14 @@ class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Arr
     val chunkedFiles = (0 until numChunk) map partitionSingleChunk(path, fileIndex) toVector
     val chunksGroupedByPartition: Vector[Vector[String]] = chunkedFiles.transpose
 
-    val mergedPartitions = mergeChunksGroupedByPartition(chunksGroupedByPartition, fileIndex)
-    mergedPartitions.filter(new File(_).length == 0).foreach(new File(_).delete())
+    mergeChunksGroupedByPartition(chunksGroupedByPartition, fileIndex)
+  }
 
-    mergedPartitions.filter(new File(_).length > 0)
+  private def removeNonzeroLength(files: Vector[Vector[String]]): Vector[Vector[String]] = {
+    val nonZeroLength = files.map(_.filter(new File(_).length > 0))
+    files.foreach( _.filter(new File(_).length == 0).foreach(new File(_).delete()) )
+
+    nonZeroLength
   }
 
   def partitionFiles(): Future[Vector[Vector[String]]] = Future {
@@ -87,6 +91,6 @@ class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Arr
     val partitionedFiles = inputFilePaths.map(partitionSingleFile)
     logger.info("Partition end")
 
-    partitionedFiles.transpose
+    removeNonzeroLength(partitionedFiles.transpose)
   }
 }

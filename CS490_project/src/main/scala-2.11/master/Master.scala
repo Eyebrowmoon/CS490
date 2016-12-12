@@ -139,6 +139,7 @@ class Master(numSlave: Int) {
     logger.info("Received FileInfoMessage")
 
     slaves.writeAndFlush(fileInfoMessage).sync()
+    Thread.sleep(numSlave * 500)
   }
 
   private def handleDoneMessage(): Unit = {
