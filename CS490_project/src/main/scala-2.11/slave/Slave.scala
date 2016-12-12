@@ -1,5 +1,6 @@
 package slave
 
+import java.io.File
 import java.net.InetAddress
 import java.util.concurrent.LinkedBlockingQueue
 
@@ -183,7 +184,10 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
 
   private def startMerger(): Unit = {
     val mergeFuture = Future {
-      partitionFiles foreach { case (idx, files) => Merger(files, s"${outputDir}/partition.$idx") }
+      partitionFiles foreach { case (idx, files) => {
+        Merger(files, s"${outputDir}/partition.$idx")
+        files foreach { new File(_).delete() }
+      }}
     }
 
     mergeFuture onSuccess { case _ => this.addMessage(MergeDoneMessage) }

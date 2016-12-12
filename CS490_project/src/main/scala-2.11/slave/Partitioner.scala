@@ -47,7 +47,7 @@ class Partitioner(inputFilePaths: Vector[String], outputDir: String, pivots: Arr
       val fileName = s"${outputDir}/partition_${fileIndex}_${partitionNum}_${slaveNum}"
       val files = chunks(partitionNum)
 
-      Merger(chunks(partitionNum), fileName)
+      Merger(files, fileName)
       files foreach { file => new File(file).delete() }
 
       fileName
