@@ -61,5 +61,5 @@ object Merger {
     }
   }
 
-  def apply(files: Vector[String], fileName: String): Unit = new Merger(files, fileName).merge
+  def apply(files: Vector[String], fileName: String): Unit = (new Merger(files, fileName)).merge()
 }

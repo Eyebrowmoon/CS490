@@ -4,7 +4,7 @@ import java.net.InetAddress
 import java.util.concurrent.LinkedBlockingQueue
 
 import com.typesafe.scalalogging.Logger
-import common.{DoneMessage, SampleMessage, SlaveInfoMessage, _}
+import common._
 import io.netty.bootstrap.Bootstrap
 import io.netty.channel.Channel
 import io.netty.channel.nio.NioEventLoopGroup
@@ -32,6 +32,12 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private var slaveIP: Array[String] = _
 
   private var partitionFinished = false
+
+  def myPartitionIndices: Range = {
+    val slaveNum = slaveIP.indexOf(myIP)
+    val rangeStart = slaveNum * numPartitionForSlave
+    rangeStart until (rangeStart + numPartitionForSlave)
+  }
 
   def run(): Unit = {
     try {
@@ -84,13 +90,6 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
 
   def addMessage(message: Message) = messageQueue add message
 
-  def myPartitionIndices: Range = {
-    val slaveNum = slaveIP.indexOf(myIP)
-    val rangeStart = slaveNum * numPartitionForSlave
-
-    rangeStart until (rangeStart + numPartitionForSlave)
-  }
-
   protected def handleMessage(message: Message, channel: Channel): Unit = state match {
     case SlaveConnectState => connectHandleMessage(message, channel)
     case SlaveComputeState => computeHandleMessage(message, channel)
@@ -139,22 +138,21 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def handlePartitionDoneMessage(files: Vector[Vector[String]], channel: Channel): Unit = {
     logger.info("Received PartitionDoneMessage")
 
+    addPartitionFiles(files)
     channel.writeAndFlush(FileInfoMessage(files, myIP))
     partitionFinished = true
 
     if (requestNotFinished.isEmpty)
-      changeToSuccessState(channel)
+      startMerger()
   }
 
   private def handleFileInfoMessage(files: Vector[Vector[String]], ownerIP: String, channel: Channel): Unit = {
     logger.info("Received FileInfoMessage")
 
-    val recvedPartitionFiles = myPartitionIndices.map(files)
-    myPartitionIndices foreach { idx =>
-      partitionFiles(idx) ++= recvedPartitionFiles(idx)
+    if (ownerIP != myIP) {
+      addPartitionFiles(files)
+      requestFiles(files, ownerIP)
     }
-
-    if (ownerIP != myIP) requestFiles(recvedPartitionFiles.toVector, ownerIP)
   }
 
   private def handleFileRequestDoneMessage(ownerIP: String, channel: Channel): Unit = {
@@ -165,6 +163,8 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   }
 
   private def handleMergeDoneMessage(channel: Channel): Unit = {
+    logger.info("Received MergeDoneMessage")
+
     changeToSuccessState(channel)
   }
 
@@ -174,9 +174,16 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     terminate()
   }
 
+  private def addPartitionFiles(files: Vector[Vector[String]]): Unit = {
+    myPartitionIndices foreach { idx =>
+      if (partitionFiles.isDefinedAt(idx)) partitionFiles(idx) ++= files(idx)
+      else partitionFiles(idx) = files(idx)
+    }
+  }
+
   private def startMerger(): Unit = {
     val mergeFuture = Future {
-      partitionFiles foreach { case (idx, files) => Merger(files, s"partition.$idx") }
+      partitionFiles foreach { case (idx, files) => Merger(files, s"${outputDir}/partition.$idx") }
     }
 
     mergeFuture onSuccess { case _ => this.addMessage(MergeDoneMessage) }
@@ -185,7 +192,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
     logger.info(s"Request files to $ownerIP")
 
-    val filesFlatten = files.flatten
+    val filesFlatten = myPartitionIndices.map(files).flatten
     val requestFuture = Future { filesFlatten foreach requestSingleFile(ownerIP) }
     requestFuture onSuccess { case () => this.addMessage(FileRequestDoneMessage(ownerIP)) }
   }
