@@ -200,7 +200,7 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
   }
 
   private def decodeFiles(filesEncoded: String): Vector[Vector[String]] = {
-    filesEncoded.split("%").toVector.map { _.split("#").toVector }
+    filesEncoded.split("%").toVector.map { _.split("#").toVector.filter( _ != "" ) }
   }
 
   private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
