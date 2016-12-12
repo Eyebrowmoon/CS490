@@ -140,15 +140,17 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     logger.info("Received PartitionDoneMessage")
 
     addPartitionFiles(files)
-    channel.writeAndFlush(FileInfoMessage(files, myIP))
+    channel.writeAndFlush(FileInfoMessage(encodeFiles(files), myIP))
     partitionFinished = true
 
     if (requestNotFinished.isEmpty)
       startMerger()
   }
 
-  private def handleFileInfoMessage(files: Vector[Vector[String]], ownerIP: String, channel: Channel): Unit = {
+  private def handleFileInfoMessage(filesEncoded: String, ownerIP: String, channel: Channel): Unit = {
     logger.info("Received FileInfoMessage")
+
+    val files = decodeFiles(filesEncoded)
 
     if (ownerIP != myIP) {
       addPartitionFiles(files)
@@ -191,6 +193,14 @@ class Slave(masterInetSocketAddress: String, inputDirs: Array[String], outputDir
     }
 
     mergeFuture onSuccess { case _ => this.addMessage(MergeDoneMessage) }
+  }
+
+  private def encodeFiles(files: Vector[Vector[String]]): String = {
+    files.map{ partition => partition.mkString("#") }.mkString("%")
+  }
+
+  private def decodeFiles(filesEncoded: String): Vector[Vector[String]] = {
+    filesEncoded.split("%").toVector.map { _.split("#").toVector }
   }
 
   private def requestFiles(files: Vector[Vector[String]], ownerIP: String): Unit = {
