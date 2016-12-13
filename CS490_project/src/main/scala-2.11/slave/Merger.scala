@@ -43,7 +43,7 @@ class Merger(files: Vector[String], fileName: String) {
   }
 
   def merge(): Unit = {
-    logger.info(s"Merge to make $fileName")
+    logger.debug(s"Merge to make $fileName")
 
     new MultipleRandomAccessFileHandler(files, "r").execute { (rafs, cins) =>
       val entryReaders = rafs.indices map { idx => new EntryReader(rafs(idx), cins(idx))}
